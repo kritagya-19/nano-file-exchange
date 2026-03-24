@@ -10,6 +10,7 @@ import {
   validateName,
   validatePassword,
 } from "../utils/validation";
+import { apiFetch } from "../utils/api";
 
 function FieldError({ message, id }) {
   if (!message) return null;
@@ -62,12 +63,31 @@ export function Register() {
   const showPasswordError = (touched.password || submitted) && passwordError;
   const showConfirmError = (touched.confirmPassword || submitted) && confirmError;
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
     setSubmitted(true);
     if (nameError || emailError || passwordError || confirmError) return;
-    login({ name: name.trim(), email: email.trim() });
-    navigate("/dashboard", { replace: true });
+    
+    try {
+      const response = await apiFetch("/auth/register", {
+        method: "POST",
+        body: { 
+          name: name.trim(), 
+          email: email.trim(), 
+          password 
+        }
+      });
+      
+      login({ 
+        token: response.token,
+        user_id: response.user_id,
+        name: response.name, 
+        email: response.email 
+      });
+      navigate("/dashboard", { replace: true });
+    } catch (err) {
+      alert(err.message || "Failed to create account. Email might already be taken.");
+    }
   }
 
   return (
