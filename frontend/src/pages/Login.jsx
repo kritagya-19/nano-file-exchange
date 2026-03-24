@@ -6,6 +6,7 @@ import { PasswordRuleList } from "../components/PasswordRuleList";
 import { useAuth } from "../context/AuthContext";
 import { nameFromEmail } from "../utils/displayName";
 import { validateEmail, validateLoginForm } from "../utils/validation";
+import { apiFetch } from "../utils/api";
 
 function FieldError({ message, id }) {
   if (!message) return null;
@@ -52,14 +53,31 @@ export function Login() {
   const showEmail = (touched.email || submitted) && emailError;
   const showPasswordError = (touched.password || submitted) && errors.password;
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
     setSubmitted(true);
     const next = validateLoginForm({ email, password });
     if (next.email || next.password) return;
-    const trimmed = email.trim();
-    login({ name: nameFromEmail(trimmed), email: trimmed });
-    navigate(from.startsWith("/dashboard") ? from : "/dashboard", { replace: true });
+    
+    try {
+      const response = await apiFetch("/auth/login", {
+        method: "POST",
+        body: { email: email.trim(), password }
+      });
+      
+      login({ 
+        token: response.token,
+        user_id: response.user_id,
+        name: response.name, 
+        email: response.email 
+      });
+      navigate(from.startsWith("/dashboard") ? from : "/dashboard", { replace: true });
+    } catch (err) {
+      // Create a fake event shaped object to mark the password invalid on bad login
+      setTouched(t => ({...t, password: true}));
+      // Manually hijacking validateLoginForm state temporarily or throwing alert
+      alert(err.message || "Invalid credentials");
+    }
   }
 
   return (

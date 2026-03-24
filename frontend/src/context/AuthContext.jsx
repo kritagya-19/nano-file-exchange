@@ -13,7 +13,9 @@ export function AuthProvider({ children }) {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (parsed?.email) setUser({ name: parsed.name || "", email: parsed.email });
+        if (parsed?.token && parsed?.email) {
+            setUser(parsed);
+        }
       }
     } catch {
       localStorage.removeItem(STORAGE_KEY);
@@ -22,9 +24,9 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = useCallback((payload) => {
-    const next = { name: payload.name?.trim() || "", email: payload.email?.trim() || "" };
-    setUser(next);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    // Expected payload: { token: string, user_id: number, name: string, email: string }
+    setUser(payload);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
   }, []);
 
   const logout = useCallback(() => {
