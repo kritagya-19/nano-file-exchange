@@ -1,0 +1,35 @@
+# Environment files
+server/.env
+
+# Python virtual environment
+server/venv/
+
+# Uploaded files (runtime data)
+server/uploads/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Local env files
+.env.*
+.venv/
+
+# Logs
+*.log
+
+# Frontend build & dependencies
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
