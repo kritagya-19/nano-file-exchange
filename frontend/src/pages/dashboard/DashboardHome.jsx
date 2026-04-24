@@ -1,261 +1,471 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect, useCallback } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowRight,
-  BarChart3,
+  ArrowUpRight,
   CloudUpload,
+  Crown,
   FileText,
-  FolderInput,
   FolderOpen,
   HardDrive,
   Image as ImageIcon,
-  Search,
+  Music,
+  Video,
+  Archive,
+  Code2,
+  File as FileIcon,
   Share2,
-  TrendingUp,
+  Star,
   Users,
+  Zap,
+  RefreshCw,
+  Sparkles,
+  Clock,
+  TrendingUp,
+  Download,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { nameFromEmail } from "../../utils/displayName";
+import { apiFetch } from "../../utils/api";
 
-const FILTER_TYPES = [
-  { id: "all", label: "All" },
-  { id: "images", label: "Images", icon: ImageIcon },
-  { id: "documents", label: "Documents", icon: FileText },
-  { id: "videos", label: "Videos" },
-  { id: "audio", label: "Audio" },
-  { id: "archives", label: "Archives" },
-];
+const FILE_TYPE_META = {
+  images:    { icon: ImageIcon, color: "from-indigo-500 to-indigo-400", bg: "bg-indigo-50",  text: "text-indigo-600" },
+  documents: { icon: FileText,  color: "from-brand to-brand-light",     bg: "bg-brand/10",   text: "text-brand" },
+  videos:    { icon: Video,     color: "from-slate-700 to-slate-600",   bg: "bg-slate-100",  text: "text-slate-700" },
+  audio:     { icon: Music,     color: "from-sky-500 to-sky-400",       bg: "bg-sky-50",     text: "text-sky-600" },
+  archives:  { icon: Archive,   color: "from-slate-500 to-slate-400",   bg: "bg-slate-100",  text: "text-slate-600" },
+  code:      { icon: Code2,     color: "from-blue-600 to-blue-500",     bg: "bg-blue-50",    text: "text-blue-600" },
+  other:     { icon: FileIcon,  color: "from-slate-400 to-slate-300",   bg: "bg-slate-50",   text: "text-slate-500" },
+};
 
-const activityItems = [
-  { text: "No recent shares yet — invite someone from Shared or a group.", time: "—" },
-  { text: "Upload a file to see transfer and version activity here.", time: "—" },
-];
+function formatBytes(bytes) {
+  if (!bytes || bytes === 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  return `${(bytes / Math.pow(1024, i)).toFixed(i > 1 ? 1 : 0)} ${units[i]}`;
+}
+
+function timeAgo(dateStr) {
+  if (!dateStr) return "";
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(dateStr).toLocaleDateString();
+}
 
 export function DashboardHome() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const displayName = user?.name?.trim() || nameFromEmail(user?.email || "");
-  const [filter, setFilter] = useState("all");
-  const [query, setQuery] = useState("");
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchStats = useCallback(async (showLoader = true) => {
+    if (!user?.token) return;
+    if (showLoader) setLoading(true);
+    try {
+      const data = await apiFetch("/dashboard/stats");
+      setStats(data);
+    } catch (err) {
+      console.error("Failed to load dashboard stats", err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [user?.token]);
+
+  useEffect(() => {
+    fetchStats();
+    const interval = setInterval(() => fetchStats(false), 15000);
+    return () => clearInterval(interval);
+  }, [fetchStats]);
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    fetchStats(false);
+  };
 
   const hour = new Date().getHours();
   const greet = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 
-  return (
-    <div className="space-y-8 pb-8 md:pb-28">
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-3xl">
-            {greet}, {displayName.split(" ")[0] || displayName}!{" "}
-            <span className="inline-block" aria-hidden>
-              👋
-            </span>
-          </h1>
-          <p className="mt-1 text-sm text-muted sm:text-base">Here&apos;s what&apos;s happening with your files today.</p>
+  if (loading && !stats) {
+    return (
+      <div className="flex items-center justify-center h-[60vh]">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-brand/10 flex items-center justify-center animate-pulse">
+            <Sparkles className="w-6 h-6 text-brand" />
+          </div>
+          <p className="text-sm text-muted font-medium animate-pulse">Loading your dashboard...</p>
         </div>
-        <div className="flex flex-wrap gap-3">
+      </div>
+    );
+  }
+
+  const storageUsed = stats?.storage_used || 0;
+  const storageLimit = stats?.storage_limit || 21474836480;
+  const storagePct = stats?.storage_pct || 0;
+  const totalFiles = stats?.total_files || 0;
+  const activeGroups = stats?.active_groups || 0;
+  const sharedFiles = stats?.shared_files || 0;
+  const starredFiles = stats?.starred_files || 0;
+  const totalFolders = stats?.total_folders || 0;
+  const recentFiles = stats?.recent_files || [];
+  const typeBreakdown = stats?.type_breakdown || {};
+
+  const storageColor = storagePct > 90 ? "from-rose-500 to-rose-400" : storagePct > 70 ? "from-brand-dark to-brand" : "from-brand to-brand-light";
+
+  return (
+    <div className="space-y-8 pb-8 md:pb-12">
+      {/* ─── Hero Header ─── */}
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">
+            {greet},{" "}
+            <span className="bg-gradient-to-r from-brand-dark to-brand bg-clip-text text-transparent">
+              {displayName.split(" ")[0] || displayName}
+            </span>
+            ! <span className="inline-block animate-bounce" aria-hidden>👋</span>
+          </h1>
+          <p className="mt-1.5 text-sm text-muted sm:text-base">
+            Here&apos;s what&apos;s happening with your files today.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2.5">
           <button
-            type="button"
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-ink shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-ink shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50"
           >
-            <FolderInput className="h-4 w-4 text-slate-600" strokeWidth={2} />
-            New Folder
+            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+            Refresh
           </button>
           <button
-            type="button"
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-brand/25 transition hover:bg-brand-dark"
+            onClick={() => navigate("/dashboard/files")}
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-dark to-brand px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-brand/25 transition hover:shadow-xl hover:shadow-brand/30 hover:-translate-y-0.5"
           >
-            <CloudUpload className="h-4 w-4" strokeWidth={2} />
+            <CloudUpload className="h-4 w-4" />
             Upload Files
           </button>
         </div>
       </div>
 
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search files, folders, and shared links…"
-          className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-11 pr-4 text-sm text-ink shadow-sm placeholder:text-slate-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-blue-100"
-          aria-label="Search files"
-        />
-      </div>
+      {/* ─── Current Plan Badge ─── */}
+      {stats?.current_plan && (
+        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-white shadow-lg ${
+              stats.current_plan === "max"
+                ? "bg-slate-900"
+                : stats.current_plan === "pro"
+                ? "bg-gradient-to-br from-brand-dark to-brand"
+                : "bg-slate-500"
+            }`}>
+              {stats.current_plan === "max" ? (
+                <Crown className="h-5 w-5" />
+              ) : stats.current_plan === "pro" ? (
+                <Zap className="h-5 w-5" />
+              ) : (
+                <Sparkles className="h-5 w-5" />
+              )}
+            </div>
+            <div>
+              <p className="text-sm font-bold text-ink capitalize">{stats.current_plan} Plan</p>
+              <p className="text-xs text-muted mt-0.5">
+                {stats.current_plan === "free"
+                  ? "Upgrade to unlock more storage & features"
+                  : "You're on a premium plan"}
+              </p>
+            </div>
+          </div>
+          {stats.current_plan !== "max" && (
+            <button
+              onClick={() => navigate("/dashboard/pricing")}
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-dark to-brand px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-brand/20 hover:shadow-lg transition-all"
+            >
+              <Zap className="h-3.5 w-3.5" />
+              {stats.current_plan === "free" ? "Upgrade Now" : "Upgrade to Max"}
+            </button>
+          )}
+        </div>
+      )}
 
-      <div className="flex flex-wrap gap-2">
-        {FILTER_TYPES.map(({ id, label, icon: Icon }) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => setFilter(id)}
-            className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition sm:text-sm ${
-              filter === id
-                ? "border-brand bg-blue-50 text-brand"
-                : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
-            }`}
-          >
-            {Icon && <Icon className="h-3.5 w-3.5" strokeWidth={2} />}
-            {label}
-          </button>
-        ))}
-      </div>
-
+      {/* ─── Stats Cards ─── */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           title="Total Files"
-          value="0"
-          hint="Across all folders"
-          badge="+12%"
-          badgeTone="emerald"
+          value={totalFiles}
+          hint={`${totalFolders} folder${totalFolders !== 1 ? "s" : ""}`}
           icon={FolderOpen}
-          iconBg="bg-emerald-50 text-emerald-600"
+          gradient="from-brand to-brand-light"
+          to="/dashboard/files"
         />
         <StatCard
           title="Active Groups"
-          value="0"
+          value={activeGroups}
           hint="Collaborations"
           icon={Users}
-          iconBg="bg-violet-50 text-violet-600"
-        />
-        <StatCard
-          title="Storage Used"
-          value="0%"
-          hint="0 MB of 5.0 GB"
-          icon={HardDrive}
-          iconBg="bg-amber-50 text-amber-600"
+          gradient="from-indigo-500 to-indigo-400"
+          to="/dashboard/groups"
         />
         <StatCard
           title="Shared Files"
-          value="0"
-          hint="Public links active"
+          value={sharedFiles}
+          hint="Public links"
           icon={Share2}
-          iconBg="bg-sky-50 text-sky-600"
+          gradient="from-sky-500 to-sky-400"
+          to="/dashboard/shared"
+        />
+        <StatCard
+          title="Starred"
+          value={starredFiles}
+          hint="Favourites"
+          icon={Star}
+          gradient="from-slate-700 to-slate-600"
+          to="/dashboard/starred"
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="space-y-4 lg:col-span-1">
-          <h2 className="text-lg font-bold text-ink">Quick Actions</h2>
-          <div className="space-y-3">
-            <QuickAction
-              title="Upload Files"
-              desc="Drag & drop or pick from your device — resumable uploads."
-              icon={CloudUpload}
-              iconClass="bg-brand text-white"
-              to="/dashboard/files"
-            />
-            <QuickAction
-              title="Create Group"
-              desc="Invite teammates and keep chats next to shared folders."
-              icon={Users}
-              iconClass="bg-violet-500 text-white"
-              to="/dashboard/groups"
-            />
-            <QuickAction
-              title="Share Files"
-              desc="Create links with optional expiry and download limits."
-              icon={Share2}
-              iconClass="bg-emerald-500 text-white"
-              to="/dashboard/shared"
-            />
+      {/* ─── Storage Card (Premium) ─── */}
+      <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm relative overflow-hidden">
+        <div className="absolute -right-8 -top-8 w-40 h-40 rounded-full bg-gradient-to-br from-brand/10 to-brand-light/5 blur-2xl pointer-events-none"></div>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
+          <div className="flex items-center gap-4">
+            <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${storageColor} text-white shadow-lg`}>
+              <HardDrive className="h-6 w-6" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-muted">Storage Used</h3>
+              <p className="text-2xl font-extrabold text-ink tracking-tight">
+                {formatBytes(storageUsed)}
+                <span className="text-sm font-medium text-muted ml-2">/ {formatBytes(storageLimit)}</span>
+              </p>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className={`text-3xl font-black tracking-tight bg-gradient-to-r ${storageColor} bg-clip-text text-transparent`}>
+              {storagePct}%
+            </p>
+            <p className="text-xs text-muted mt-0.5">capacity</p>
           </div>
         </div>
+        <div className="mt-5 h-3 overflow-hidden rounded-full bg-slate-100 relative z-10">
+          <div
+            className={`h-full rounded-full bg-gradient-to-r ${storageColor} transition-all duration-1000 ease-out relative`}
+            style={{ width: `${Math.max(storagePct, 1)}%` }}
+          >
+            <div className="absolute inset-0 bg-white/20 rounded-full animate-pulse"></div>
+          </div>
+        </div>
+      </div>
 
-        <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm lg:col-span-2">
-          <div className="flex items-center justify-between gap-4">
-            <h2 className="text-lg font-bold text-ink">Recent Files</h2>
-            <Link to="/dashboard/files" className="text-sm font-semibold text-brand hover:text-brand-dark">
-              View All
+      {/* ─── Main Grid ─── */}
+      <div className="grid gap-6 lg:grid-cols-5">
+        
+        {/* ── Recent Files ── */}
+        <div className="lg:col-span-3 rounded-3xl border border-slate-100 bg-white shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between px-6 pt-6 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand/10 text-brand">
+                <Clock className="h-4 w-4" />
+              </div>
+              <h2 className="text-lg font-bold text-ink">Recent Files</h2>
+            </div>
+            <Link to="/dashboard/files" className="text-sm font-semibold text-brand hover:text-brand/80 flex items-center gap-1 transition-colors">
+              View All <ArrowUpRight className="w-3.5 h-3.5" />
             </Link>
           </div>
-          <div className="mt-8 flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/50 py-14 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-slate-400 shadow-sm ring-1 ring-slate-100">
-              <FileText className="h-7 w-7" strokeWidth={1.5} />
+          
+          {recentFiles.length === 0 ? (
+            <div className="px-6 pb-8 pt-4">
+              <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/50 py-16 text-center">
+                <div className="flex h-16 w-16 items-center justify-center rounded-[1.25rem] bg-white text-slate-300 shadow-sm ring-1 ring-slate-100">
+                  <FileText className="h-8 w-8" strokeWidth={1.5} />
+                </div>
+                <p className="mt-5 font-semibold text-ink">No files yet</p>
+                <p className="mt-1.5 max-w-xs text-sm text-muted">Upload your first file to see it here.</p>
+                <button 
+                  onClick={() => navigate("/dashboard/files")}
+                  className="mt-5 inline-flex items-center gap-2 rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-brand/20 hover:bg-brand/90 transition"
+                >
+                  <CloudUpload className="h-4 w-4" /> Upload Now
+                </button>
+              </div>
             </div>
-            <p className="mt-4 font-medium text-ink">No files yet</p>
-            <p className="mt-1 max-w-sm text-sm text-muted">Upload your first file to get started.</p>
-          </div>
-        </div>
-      </div>
-
-      <section className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
-        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-lg font-bold text-ink">Activity Overview</h2>
-            <p className="text-sm text-muted">Your file activity this week — shares, uploads, and group updates.</p>
-          </div>
-          <div className="mt-2 inline-flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-1.5 text-xs font-medium text-muted sm:mt-0">
-            <BarChart3 className="h-3.5 w-3.5" />
-            Live when backend is connected
-          </div>
-        </div>
-        <ul className="mt-6 divide-y divide-slate-100 border-t border-slate-100">
-          {activityItems.map((item, i) => (
-            <li key={i} className="flex items-start justify-between gap-4 py-4 text-sm">
-              <span className="text-slate-700">{item.text}</span>
-              <span className="shrink-0 text-xs text-muted">{item.time}</span>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <div
-        className="fixed bottom-6 right-6 z-20 hidden max-w-sm items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-lg shadow-slate-200/80 md:flex"
-        role="status"
-        aria-live="polite"
-      >
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
-          <TrendingUp className="h-5 w-5" strokeWidth={1.75} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-ink">Transfers</p>
-          <p className="text-xs text-muted">No active uploads or downloads.</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function StatCard({ title, value, hint, badge, badgeTone, icon: Icon, iconBg }) {
-  return (
-    <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-sm font-medium text-muted">{title}</p>
-          <p className="mt-2 text-3xl font-bold tracking-tight text-ink">{value}</p>
-          <p className="mt-1 text-xs text-muted">{hint}</p>
-          {badge && (
-            <span
-              className={`mt-3 inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${
-                badgeTone === "emerald" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"
-              }`}
-            >
-              {badge}
-            </span>
+          ) : (
+            <div className="divide-y divide-slate-50">
+              {recentFiles.map((f) => {
+                const meta = FILE_TYPE_META[f.file_type] || FILE_TYPE_META[_categorize(f.file_type)] || FILE_TYPE_META.other;
+                const Icon = meta.icon;
+                return (
+                  <div key={f.file_id} className="flex items-center gap-4 px-6 py-3.5 hover:bg-slate-50/80 transition-colors group">
+                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${meta.bg} ${meta.text}`}>
+                      <Icon className="h-5 w-5" strokeWidth={1.75}/>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-ink truncate">{f.file_name}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-xs text-muted">{formatBytes(f.size)}</span>
+                        <span className="text-slate-200">·</span>
+                        <span className="text-xs text-muted">{timeAgo(f.uploaded_at)}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {f.is_favorite && <Star className="w-4 h-4 text-amber-400" fill="currentColor" />}
+                      {f.share_token && <Share2 className="w-4 h-4 text-sky-500" />}
+                      <a 
+                        href={`http://localhost:8000/api/files/${f.file_id}`}
+                        download
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-brand hover:bg-brand/10 transition-colors"
+                      >
+                        <Download className="w-4 h-4" />
+                      </a>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
-        <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${iconBg}`}>
-          <Icon className="h-5 w-5" strokeWidth={1.75} />
+
+        {/* ── Right Column ── */}
+        <div className="lg:col-span-2 space-y-6">
+          
+          {/* Quick Actions */}
+          <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
+            <h2 className="text-base font-bold text-ink mb-4 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-brand" /> Quick Actions
+            </h2>
+            <div className="space-y-2.5">
+              <QuickAction
+                title="Upload Files"
+                desc="Drag & drop or browse"
+                icon={CloudUpload}
+                gradient="from-brand-dark to-brand"
+                to="/dashboard/files"
+              />
+              <QuickAction
+                title="Create Group"
+                desc="Start collaborating"
+                icon={Users}
+                gradient="from-slate-700 to-slate-800"
+                to="/dashboard/groups"
+              />
+              <QuickAction
+                title="Share Files"
+                desc="Create public links"
+                icon={Share2}
+                gradient="from-indigo-500 to-indigo-600"
+                to="/dashboard/shared"
+              />
+            </div>
+          </div>
+
+          {/* File Types Breakdown */}
+          {Object.keys(typeBreakdown).length > 0 && (
+            <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
+              <h2 className="text-base font-bold text-ink mb-4 flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-brand" /> Storage Breakdown
+              </h2>
+              <div className="space-y-3">
+                {Object.entries(typeBreakdown)
+                  .sort(([,a], [,b]) => b.size - a.size)
+                  .map(([category, data]) => {
+                    const meta = FILE_TYPE_META[category] || FILE_TYPE_META.other;
+                    const Icon = meta.icon;
+                    const pctOfTotal = storageUsed > 0 ? Math.round((data.size / storageUsed) * 100) : 0;
+                    return (
+                      <div key={category} className="flex items-center gap-3">
+                        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${meta.bg} ${meta.text}`}>
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs font-semibold text-ink capitalize">{category}</span>
+                            <span className="text-[10px] font-medium text-muted">{data.count} file{data.count !== 1 ? "s" : ""} · {formatBytes(data.size)}</span>
+                          </div>
+                          <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                            <div
+                              className={`h-full rounded-full bg-gradient-to-r ${meta.color || "from-slate-400 to-slate-500"} transition-all duration-700`}
+                              style={{ width: `${Math.max(pctOfTotal, 2)}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-function QuickAction({ title, desc, icon: Icon, iconClass, to }) {
+/* ─── Sub-components ─── */
+
+function StatCard({ title, value, hint, icon: Icon, gradient, to }) {
   return (
     <Link
       to={to}
-      className="group flex items-center gap-4 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm transition hover:border-slate-200 hover:shadow-md"
+      className="group relative rounded-2xl border border-slate-100 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5 hover:border-slate-200 overflow-hidden"
     >
-      <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${iconClass}`}>
-        <Icon className="h-5 w-5" strokeWidth={2} />
+      <div className={`absolute -right-4 -top-4 w-20 h-20 rounded-full bg-gradient-to-br ${gradient} opacity-[0.07] blur-xl group-hover:opacity-[0.12] transition-opacity`}></div>
+      <div className="flex items-start justify-between gap-3 relative z-10">
+        <div>
+          <p className="text-sm font-medium text-muted">{title}</p>
+          <p className="mt-2 text-3xl font-extrabold tracking-tight text-ink">{value}</p>
+          <p className="mt-1 text-xs text-muted">{hint}</p>
+        </div>
+        <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${gradient} text-white shadow-lg`}>
+          <Icon className="h-5 w-5" strokeWidth={1.75} />
+        </div>
       </div>
-      <div className="min-w-0 flex-1">
-        <p className="font-semibold text-ink">{title}</p>
-        <p className="mt-0.5 text-xs leading-relaxed text-muted">{desc}</p>
+      <div className="absolute bottom-3 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+        <ArrowRight className="w-4 h-4 text-slate-300" />
       </div>
-      <ArrowRight className="h-5 w-5 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-brand" />
     </Link>
   );
+}
+
+function QuickAction({ title, desc, icon: Icon, gradient, to }) {
+  return (
+    <Link
+      to={to}
+      className="group flex items-center gap-3.5 rounded-2xl border border-slate-100 bg-white p-3.5 transition-all hover:border-slate-200 hover:shadow-sm"
+    >
+      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${gradient} text-white shadow-md`}>
+        <Icon className="h-4 w-4" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold text-ink">{title}</p>
+        <p className="text-xs text-muted">{desc}</p>
+      </div>
+      <ArrowRight className="h-4 w-4 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-brand" />
+    </Link>
+  );
+}
+
+/* Utility to categorize file extensions for type icon mapping */
+function _categorize(ext) {
+  const images = new Set(["jpg", "jpeg", "png", "gif", "bmp", "svg", "webp", "ico", "tiff"]);
+  const documents = new Set(["pdf", "doc", "docx", "txt", "xls", "xlsx", "ppt", "pptx", "csv", "rtf", "odt"]);
+  const videos = new Set(["mp4", "avi", "mkv", "mov", "wmv", "flv", "webm"]);
+  const audio = new Set(["mp3", "wav", "ogg", "flac", "aac", "wma", "m4a"]);
+  const archives = new Set(["zip", "rar", "7z", "tar", "gz", "bz2"]);
+  const code = new Set(["py", "js", "jsx", "ts", "tsx", "html", "css", "json", "xml", "yaml", "yml", "md", "sql", "java", "c", "cpp", "go", "rs"]);
+  
+  if (images.has(ext)) return "images";
+  if (documents.has(ext)) return "documents";
+  if (videos.has(ext)) return "videos";
+  if (audio.has(ext)) return "audio";
+  if (archives.has(ext)) return "archives";
+  if (code.has(ext)) return "code";
+  return "other";
 }
