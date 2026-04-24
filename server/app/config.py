@@ -21,6 +21,16 @@ class Settings(BaseSettings):
     # File storage
     UPLOAD_DIR: str = "uploads"
 
+    # Email (SMTP) for invitations
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM_EMAIL: str = ""
+
+    # Frontend URL for invitation links
+    FRONTEND_URL: str = "http://localhost:5173"
+
     @property
     def DATABASE_URL(self) -> str:
         return f"mysql+pymysql://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"

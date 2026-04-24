@@ -4,9 +4,9 @@ import { Menu, X } from "lucide-react";
 
 const links = [
   { to: "/#features", label: "Features" },
-  { to: "/#process", label: "Process" },
+  { to: "/#process", label: "How it works" },
   { to: "/#audience", label: "For whom" },
-  { to: "/#cta", label: "Pricing" },
+  { to: "/#pricing", label: "Pricing" },
 ];
 
 export function Navbar() {

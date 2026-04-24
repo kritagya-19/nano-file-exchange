@@ -16,8 +16,11 @@ export function CTA() {
       />
       <div className="pointer-events-none absolute -bottom-24 right-0 h-80 w-80 rounded-full bg-fuchsia-400/30 blur-3xl" aria-hidden />
 
-      <div className="relative mx-auto max-w-3xl px-4 text-center sm:px-6">
-        <h2 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl lg:text-5xl">
+      <div className="relative mx-auto max-w-3xl px-4 text-center sm:px-6 animate-in fade-in slide-in-from-bottom-8 duration-700 ease-out">
+        <div className="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-4 py-1.5 shadow-sm mb-6">
+          <span className="text-sm font-bold tracking-wider text-white uppercase">Get Started</span>
+        </div>
+        <h2 className="text-4xl font-extrabold tracking-tight text-white sm:text-5xl mb-5">
           Ready to Start{" "}
           <span className="relative inline-block">
             Sharing?
@@ -36,7 +39,7 @@ export function CTA() {
             </svg>
           </span>
         </h2>
-        <p className="mx-auto mt-5 max-w-2xl text-base text-white/85 sm:text-lg">
+        <p className="text-base sm:text-lg text-white/85 max-w-2xl mx-auto leading-relaxed">
           Join thousands of students and teams who share files the easy way. Create your free account and share your
           first file in under a minute.
         </p>

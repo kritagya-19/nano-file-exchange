@@ -1,5 +1,14 @@
-from sqlalchemy import Column, Integer, String, BigInteger, ForeignKey, TIMESTAMP, func
+from sqlalchemy import Column, Integer, String, BigInteger, Boolean, ForeignKey, TIMESTAMP, func
 from app.database import Base
+
+
+class Folder(Base):
+    __tablename__ = "folders"
+
+    folder_id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(255), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(TIMESTAMP, server_default=func.now())
 
 
 class File(Base):
@@ -12,6 +21,9 @@ class File(Base):
     cloud_url = Column(String(500))
     user_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
     uploaded_at = Column(TIMESTAMP, server_default=func.now())
+    is_favorite = Column(Boolean, default=False)
+    share_token = Column(String(64), unique=True, nullable=True)
+    folder_id = Column(Integer, ForeignKey("folders.folder_id", ondelete="SET NULL"), nullable=True)
 
 
 class StorageDetail(Base):
