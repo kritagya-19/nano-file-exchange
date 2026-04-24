@@ -36,9 +36,7 @@ export function Login() {
   const { login, user, ready } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const searchParams = new URLSearchParams(location.search);
-  const redirectParam = searchParams.get("redirect");
-  const from = redirectParam || location.state?.from || "/dashboard";
+  const from = location.state?.from || "/dashboard";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -47,7 +45,7 @@ export function Login() {
   const [submitted, setSubmitted] = useState(false);
 
   if (ready && user?.email) {
-    return <Navigate to={from} replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   const emailError = validateEmail(email);
@@ -73,7 +71,7 @@ export function Login() {
         name: response.name, 
         email: response.email 
       });
-      navigate(from.startsWith("/") ? from : "/dashboard", { replace: true });
+      navigate(from.startsWith("/dashboard") ? from : "/dashboard", { replace: true });
     } catch (err) {
       // Create a fake event shaped object to mark the password invalid on bad login
       setTouched(t => ({...t, password: true}));
@@ -160,7 +158,7 @@ export function Login() {
       </div>
 
       <Link
-        to={`/register${redirectParam ? `?redirect=${encodeURIComponent(redirectParam)}` : ''}`}
+        to="/register"
         className="flex w-full items-center justify-center rounded-lg border border-slate-300 bg-white py-3 text-sm font-semibold text-slate-900 shadow-sm transition hover:border-slate-400 hover:bg-slate-50"
       >
         Create a free account

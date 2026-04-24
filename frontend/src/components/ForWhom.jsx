@@ -40,18 +40,15 @@ export function ForWhom() {
     <section id="audience" className="relative overflow-hidden py-20 sm:py-24">
       <SectionGlow />
       <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-3xl text-center mb-16 animate-in fade-in slide-in-from-bottom-8 duration-700 ease-out">
-          <div className="inline-flex items-center rounded-full border border-gray-200 bg-white px-4 py-1.5 shadow-sm mb-6">
-            <span className="text-sm font-bold tracking-wider text-brand uppercase">Audience</span>
-          </div>
-          <h2 className="text-4xl font-extrabold tracking-tight text-ink sm:text-5xl mb-5">
+        <div className="mx-auto max-w-2xl text-center">
+          <h2 className="text-3xl font-bold tracking-tight text-ink sm:text-4xl">
             Built for People{" "}
             <span className="relative inline-block text-brand">
               Like You
               <BrushUnderline />
             </span>
           </h2>
-          <p className="text-lg text-muted max-w-2xl mx-auto leading-relaxed">
+          <p className="mt-3 text-muted">
             Whether you're a student, freelancer, or running a business — NanoFile makes file sharing simple.
           </p>
         </div>

@@ -34,23 +34,18 @@ export function Process() {
     <section id="process" className="relative overflow-hidden py-20 sm:py-24">
       <SectionGlow />
       <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-3xl text-center mb-16 animate-in fade-in slide-in-from-bottom-8 duration-700 ease-out">
-          <div className="inline-flex items-center rounded-full border border-gray-200 bg-white px-4 py-1.5 shadow-sm mb-6">
-            <span className="text-sm font-bold tracking-wider text-brand uppercase">How it works</span>
-          </div>
-          <h2 className="text-4xl font-extrabold tracking-tight text-ink sm:text-5xl mb-5">
+        <div className="mx-auto max-w-2xl text-center">
+          <h2 className="text-3xl font-bold tracking-tight text-ink sm:text-4xl">
             Get Started in{" "}
             <span className="relative inline-block text-brand">
               3 Easy Steps
               <BrushUnderline wide />
             </span>
           </h2>
-          <p className="text-lg text-muted max-w-2xl mx-auto leading-relaxed">
-            No learning curve. If you can send an email, you can use NanoFile.
-          </p>
+          <p className="mt-3 text-muted">No learning curve. If you can send an email, you can use NanoFile.</p>
         </div>
 
-        <div className="relative mt-8">
+        <div className="relative mt-16">
           <div className="absolute left-[12.5%] right-[12.5%] top-5 hidden h-px bg-blue-200 lg:block" aria-hidden />
           <div className="grid gap-10 lg:grid-cols-3 lg:gap-8">
             {steps.map((step) => (

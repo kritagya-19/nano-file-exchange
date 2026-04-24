@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, Navigate, useNavigate, useLocation } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Lock, Mail, UserRound } from "lucide-react";
 import { AuthLayout } from "../components/AuthLayout";
 import { PasswordRuleList } from "../components/PasswordRuleList";
@@ -39,10 +39,6 @@ const inputInnerPassword = `${inputInner} pr-11`;
 export function Register() {
   const { login, user, ready } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
-  const searchParams = new URLSearchParams(location.search);
-  const redirectParam = searchParams.get("redirect");
-  const from = redirectParam || "/dashboard";
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -54,7 +50,7 @@ export function Register() {
   const [submitted, setSubmitted] = useState(false);
 
   if (ready && user?.email) {
-    return <Navigate to={from} replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   const nameError = validateName(name);
@@ -88,7 +84,7 @@ export function Register() {
         name: response.name, 
         email: response.email 
       });
-      navigate(from, { replace: true });
+      navigate("/dashboard", { replace: true });
     } catch (err) {
       alert(err.message || "Failed to create account. Email might already be taken.");
     }
@@ -226,7 +222,7 @@ export function Register() {
       </div>
 
       <Link
-        to={`/login${redirectParam ? `?redirect=${encodeURIComponent(redirectParam)}` : ''}`}
+        to="/login"
         className="flex w-full items-center justify-center rounded-lg border border-slate-300 bg-white py-3 text-sm font-semibold text-slate-900 shadow-sm transition hover:border-slate-400 hover:bg-slate-50"
       >
         Sign in to existing account
