@@ -15,12 +15,34 @@ from app.config import settings
 
 router = APIRouter()
 
+import re
+import logging
+
+logger = logging.getLogger(__name__)
+
+_SAFE_UPLOAD_ID_RE = re.compile(r'^[a-f0-9]{8,64}$')
+
+
 def _resolve_abs_file_path(file_path: Optional[str]) -> Optional[str]:
+    """Safely resolve a stored relative filename to an absolute path.
+    
+    SECURITY: All paths are jailed inside UPLOAD_DIR. Absolute paths or
+    directory traversal sequences (../../) are rejected outright.
+    """
     if not file_path:
         return None
-    if os.path.isabs(file_path):
-        return file_path
-    return os.path.join(settings.UPLOAD_DIR, file_path)
+    # Reject any absolute path or path with directory traversal
+    basename = os.path.basename(file_path)
+    if not basename or basename != file_path:
+        logger.warning("Rejected suspicious file_path from DB: %s", file_path)
+        return None
+    upload_dir = os.path.realpath(settings.UPLOAD_DIR)
+    full_path = os.path.realpath(os.path.join(upload_dir, basename))
+    # Ensure the resolved path is still inside UPLOAD_DIR
+    if not full_path.startswith(upload_dir + os.sep) and full_path != upload_dir:
+        logger.warning("Path jail escape attempt: %s", full_path)
+        return None
+    return full_path
 
 
 def _delete_file_from_disk(file_path: Optional[str]) -> None:
@@ -30,8 +52,8 @@ def _delete_file_from_disk(file_path: Optional[str]) -> None:
     if os.path.exists(full_path):
         try:
             os.remove(full_path)
-        except OSError:
-            pass
+        except OSError as e:
+            logger.error("Failed to delete file %s: %s", full_path, e)
 
 
 def _build_file_response(f: FileModel) -> FileResponse:
@@ -41,12 +63,13 @@ def _build_file_response(f: FileModel) -> FileResponse:
         size=f.size,
         file_path=f.file_path,
         cloud_url=f.cloud_url,
-        download_url=f"http://localhost:8000/api/files/{f.file_id}",
+        download_url=f"/api/files/{f.file_id}",
         uploaded_at=f.uploaded_at,
         is_favorite=f.is_favorite or False,
         share_token=f.share_token,
         folder_id=f.folder_id,
     )
+
 
 
 # ── Upload (single file, with progress on frontend via XHR) ──────────────────
@@ -57,15 +80,19 @@ async def upload_file(
     user_id: int = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
-    content = await file.read()
     safe_filename = os.path.basename(file.filename or "uploaded_file")
-
     unique_filename = f"{uuid.uuid4().hex}_{safe_filename}"
     filepath = os.path.join(settings.UPLOAD_DIR, unique_filename)
 
+    # Stream to disk in 1 MB chunks — never loads entire file into RAM
+    actual_size = 0
     with open(filepath, "wb") as f:
-        f.write(content)
-    actual_size = os.path.getsize(filepath)
+        while True:
+            chunk = await file.read(1024 * 1024)  # 1 MB at a time
+            if not chunk:
+                break
+            f.write(chunk)
+            actual_size += len(chunk)
 
     new_file = FileModel(
         file_name=safe_filename,
@@ -76,15 +103,17 @@ async def upload_file(
         uploaded_at=datetime.now(UTC),
     )
     db.add(new_file)
-    db.commit()
-    db.refresh(new_file)
 
     file_ext = os.path.splitext(safe_filename)[1][1:].lower() or "unknown"
     storage_detail = StorageDetail(
-        file_id=new_file.file_id,
+        file_id=0,  # placeholder, will update after flush
         sender_id=user_id,
         file_type=file_ext,
     )
+    # Flush to get the file_id, then set it on storage_detail — single commit
+    db.flush()
+    db.refresh(new_file)
+    storage_detail.file_id = new_file.file_id
     db.add(storage_detail)
     db.commit()
 
@@ -93,7 +122,7 @@ async def upload_file(
         "file_id": new_file.file_id,
         "file_name": new_file.file_name,
         "size": new_file.size,
-        "download_url": f"http://localhost:8000/api/files/{new_file.file_id}",
+        "download_url": f"/api/files/{new_file.file_id}",
     }
 
 
@@ -113,8 +142,18 @@ async def upload_chunk(
     if chunk_index < 0 or total_chunks <= 0 or chunk_index >= total_chunks:
         raise HTTPException(status_code=400, detail="Invalid chunk index or total chunks")
 
+    # SECURITY: Sanitize upload_id — must be a safe hexadecimal UUID-like string
+    safe_upload_id = os.path.basename(upload_id)
+    if not _SAFE_UPLOAD_ID_RE.match(safe_upload_id):
+        raise HTTPException(status_code=400, detail="Invalid upload_id format")
+
+    # SECURITY: Sanitize file_name — strip to basename only, no directory separators
+    safe_file_name = os.path.basename(file_name)
+    if not safe_file_name:
+        raise HTTPException(status_code=400, detail="Invalid file name")
+
     chunk_content = await file.read()
-    chunk_dir = os.path.join(settings.UPLOAD_DIR, "chunks", upload_id)
+    chunk_dir = os.path.join(settings.UPLOAD_DIR, "chunks", safe_upload_id)
     os.makedirs(chunk_dir, exist_ok=True)
 
     chunk_path = os.path.join(chunk_dir, f"chunk_{chunk_index}")
@@ -132,7 +171,7 @@ async def upload_chunk(
         return {"status": "uploading", "uploaded_chunks": uploaded, "total_chunks": total_chunks}
 
     # All chunks received — assemble
-    unique_filename = f"{uuid.uuid4().hex}_{file_name}"
+    unique_filename = f"{uuid.uuid4().hex}_{safe_file_name}"
     final_path = os.path.join(settings.UPLOAD_DIR, unique_filename)
 
     assembled_size = 0
@@ -148,8 +187,8 @@ async def upload_chunk(
     if total_size and assembled_size != total_size:
         try:
             os.remove(final_path)
-        except OSError:
-            pass
+        except OSError as e:
+            logger.error("Failed to remove mismatched file %s: %s", final_path, e)
         raise HTTPException(status_code=400, detail="Uploaded file size mismatch")
 
     # Clean up chunk files
@@ -157,7 +196,7 @@ async def upload_chunk(
     shutil.rmtree(chunk_dir, ignore_errors=True)
 
     new_file = FileModel(
-        file_name=file_name,
+        file_name=safe_file_name,
         size=assembled_size,
         file_path=unique_filename,
         user_id=user_id,
@@ -168,7 +207,7 @@ async def upload_chunk(
     db.commit()
     db.refresh(new_file)
 
-    file_ext = os.path.splitext(file_name)[1][1:].lower() or "unknown"
+    file_ext = os.path.splitext(safe_file_name)[1][1:].lower() or "unknown"
     storage_detail = StorageDetail(
         file_id=new_file.file_id,
         sender_id=user_id,
@@ -182,7 +221,7 @@ async def upload_chunk(
         "file_id": new_file.file_id,
         "file_name": new_file.file_name,
         "size": new_file.size,
-        "download_url": f"http://localhost:8000/api/files/{new_file.file_id}",
+        "download_url": f"/api/files/{new_file.file_id}",
     }
 
 
@@ -190,13 +229,17 @@ async def upload_chunk(
 @router.get("", response_model=List[FileResponse])
 def get_user_files(
     folder_id: Optional[int] = None,
+    limit: int = 100,
+    offset: int = 0,
     user_id: int = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
     q = select(FileModel).where(FileModel.user_id == user_id)
     if folder_id is not None:
         q = q.where(FileModel.folder_id == folder_id)
-    files = db.scalars(q.order_by(FileModel.uploaded_at.desc())).all()
+    files = db.scalars(
+        q.order_by(FileModel.uploaded_at.desc()).limit(limit).offset(offset)
+    ).all()
     return [_build_file_response(f) for f in files]
 
 

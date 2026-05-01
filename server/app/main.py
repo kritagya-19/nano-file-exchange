@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import ORJSONResponse
 from contextlib import asynccontextmanager
 from sqlalchemy import text
 import os
@@ -137,12 +139,25 @@ app = FastAPI(
     description="File Transfer and Group Chat System API",
     version="1.0.0",
     lifespan=lifespan,
+    # ORJSON: 2-5x faster JSON serialization (Rust-based)
+    default_response_class=ORJSONResponse,
 )
 
-# CORS
+# GZip compression — compresses JSON responses by 60-80% for faster transfer
+app.add_middleware(GZipMiddleware, minimum_size=500)
+
+# CORS — allow both localhost (dev) and production frontend URL
+allowed_origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+# Add production frontend URL if configured
+if settings.FRONTEND_URL and settings.FRONTEND_URL not in allowed_origins:
+    allowed_origins.append(settings.FRONTEND_URL)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:[0-9]+)?",
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -1,4 +1,3 @@
-import os
 from pydantic_settings import BaseSettings
 from dotenv import load_dotenv
 
@@ -14,7 +13,7 @@ class Settings(BaseSettings):
     DB_NAME: str = "nano_exchange"
 
     # JWT
-    SECRET_KEY: str = "nano-super-secret-2024-change-in-production"
+    SECRET_KEY: str  # REQUIRED: must be set in .env — no default to prevent accidental weak keys
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_HOURS: int = 24
 

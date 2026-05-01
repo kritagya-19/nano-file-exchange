@@ -5,9 +5,9 @@ plan/subscription management, storage analytics, revenue, activity logs,
 and dashboard statistics.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import select, func, desc, and_, or_, extract, case, text
+from sqlalchemy import select, func, desc, or_, extract
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime, timedelta
@@ -15,14 +15,14 @@ import os
 
 from app.database import get_db
 from app.models.user import User, Admin
-from app.models.file import File, Folder, StorageDetail
-from app.models.group import Group, GroupMember, GroupInvitation
+from app.models.file import File
+from app.models.group import Group, GroupMember
+from app.models.message import Message
 from app.models.subscription import Subscription
 from app.models.activity_log import ActivityLog
 from app.models.plan import Plan
-from app.utils.security import verify_password, get_password_hash, create_access_token
+from app.utils.security import verify_password, create_access_token
 from app.config import settings
-from app.middleware.auth import verify_token
 
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi import Security
@@ -30,12 +30,29 @@ import jwt
 
 router = APIRouter()
 
+import logging
+
+logger = logging.getLogger(__name__)
+
+
 def _resolve_abs_file_path(file_path: str | None) -> str | None:
+    """Safely resolve a stored relative filename to an absolute path.
+
+    SECURITY: All paths are jailed inside UPLOAD_DIR. Absolute paths or
+    directory traversal sequences are rejected.
+    """
     if not file_path:
         return None
-    if os.path.isabs(file_path):
-        return file_path
-    return os.path.join(settings.UPLOAD_DIR, file_path)
+    basename = os.path.basename(file_path)
+    if not basename or basename != file_path:
+        logger.warning("Rejected suspicious file_path from DB: %s", file_path)
+        return None
+    upload_dir = os.path.realpath(settings.UPLOAD_DIR)
+    full_path = os.path.realpath(os.path.join(upload_dir, basename))
+    if not full_path.startswith(upload_dir + os.sep) and full_path != upload_dir:
+        logger.warning("Path jail escape attempt: %s", full_path)
+        return None
+    return full_path
 
 
 def _delete_file_from_disk(file_path: str | None) -> None:
@@ -45,8 +62,8 @@ def _delete_file_from_disk(file_path: str | None) -> None:
     if os.path.exists(full_path):
         try:
             os.remove(full_path)
-        except OSError:
-            pass
+        except OSError as e:
+            logger.error("Failed to delete file %s: %s", full_path, e)
 
 
 # ─────────────────────── Admin Auth Middleware ───────────────────────
@@ -161,51 +178,53 @@ def admin_dashboard(admin_id: int = Depends(get_admin_id), db: Session = Depends
         )
     ) or 0
 
-    # Recent 6 months revenue for chart
+    # ── Monthly chart data: 3 queries instead of 18 ──
+    # Revenue chart (last 6 months)
+    rev_rows = db.execute(
+        select(
+            extract("year", Subscription.purchased_at).label("y"),
+            extract("month", Subscription.purchased_at).label("m"),
+            func.coalesce(func.sum(Subscription.amount_paid), 0),
+        )
+        .where(Subscription.purchased_at >= now - timedelta(days=180))
+        .group_by("y", "m")
+    ).all()
+    rev_map = {(int(r[0]), int(r[1])): float(r[2]) for r in rev_rows}
+
+    # User growth chart (last 6 months)
+    user_rows = db.execute(
+        select(
+            extract("year", User.created_at).label("y"),
+            extract("month", User.created_at).label("m"),
+            func.count(User.user_id),
+        )
+        .where(User.created_at >= now - timedelta(days=180))
+        .group_by("y", "m")
+    ).all()
+    user_map = {(int(r[0]), int(r[1])): r[2] for r in user_rows}
+
+    # Upload chart (last 6 months)
+    upload_rows = db.execute(
+        select(
+            extract("year", File.uploaded_at).label("y"),
+            extract("month", File.uploaded_at).label("m"),
+            func.count(File.file_id),
+        )
+        .where(File.uploaded_at >= now - timedelta(days=180))
+        .group_by("y", "m")
+    ).all()
+    upload_map = {(int(r[0]), int(r[1])): r[2] for r in upload_rows}
+
+    # Build chart arrays from maps
     monthly_revenue_chart = []
-    for i in range(5, -1, -1):
-        d = now - timedelta(days=30 * i)
-        rev = float(db.scalar(
-            select(func.coalesce(func.sum(Subscription.amount_paid), 0))
-            .where(
-                extract("year", Subscription.purchased_at) == d.year,
-                extract("month", Subscription.purchased_at) == d.month,
-            )
-        ) or 0)
-        monthly_revenue_chart.append({
-            "month": d.strftime("%b %Y"),
-            "revenue": rev,
-        })
-
-    # Recent 6 months user signups for chart
     user_growth_chart = []
-    for i in range(5, -1, -1):
-        d = now - timedelta(days=30 * i)
-        count = db.scalar(
-            select(func.count(User.user_id)).where(
-                extract("year", User.created_at) == d.year,
-                extract("month", User.created_at) == d.month,
-            )
-        ) or 0
-        user_growth_chart.append({
-            "month": d.strftime("%b %Y"),
-            "users": count,
-        })
-
-    # Recent 6 months file uploads for chart
     upload_chart = []
     for i in range(5, -1, -1):
         d = now - timedelta(days=30 * i)
-        count = db.scalar(
-            select(func.count(File.file_id)).where(
-                extract("year", File.uploaded_at) == d.year,
-                extract("month", File.uploaded_at) == d.month,
-            )
-        ) or 0
-        upload_chart.append({
-            "month": d.strftime("%b %Y"),
-            "uploads": count,
-        })
+        key = (d.year, d.month)
+        monthly_revenue_chart.append({"month": d.strftime("%b %Y"), "revenue": rev_map.get(key, 0)})
+        user_growth_chart.append({"month": d.strftime("%b %Y"), "users": user_map.get(key, 0)})
+        upload_chart.append({"month": d.strftime("%b %Y"), "uploads": upload_map.get(key, 0)})
 
     # Top 5 users by storage
     top_storage_users = []
@@ -259,28 +278,48 @@ def list_users(
     total = db.scalar(select(func.count()).select_from(query.subquery()))
     users = db.scalars(query.order_by(desc(User.created_at)).offset((page - 1) * per_page).limit(per_page)).all()
 
+    if not users:
+        return {"users": [], "total": total, "page": page, "per_page": per_page}
+
+    # ── Batched aggregation: 1 query instead of 3N queries ──
+    user_ids = [u.user_id for u in users]
+
+    # Storage + file count per user (single query)
+    storage_rows = db.execute(
+        select(
+            File.user_id,
+            func.coalesce(func.sum(File.size), 0).label("total_size"),
+            func.count(File.file_id).label("file_count"),
+        )
+        .where(File.user_id.in_(user_ids))
+        .group_by(File.user_id)
+    ).all()
+    storage_map = {r[0]: {"size": int(r[1]), "count": r[2]} for r in storage_rows}
+
+    # Active subscription per user (single query)
+    # Use a window function approach: get the latest active sub per user
+    sub_rows = db.execute(
+        select(Subscription.user_id, Subscription.plan)
+        .where(Subscription.user_id.in_(user_ids), Subscription.status == "active")
+        .order_by(desc(Subscription.purchased_at))
+    ).all()
+    # First occurrence per user_id wins (latest due to ORDER BY)
+    plan_map = {}
+    for uid, plan_name in sub_rows:
+        if uid not in plan_map:
+            plan_map[uid] = plan_name
+
     result = []
     for u in users:
-        # Get storage used
-        storage = db.scalar(select(func.coalesce(func.sum(File.size), 0)).where(File.user_id == u.user_id)) or 0
-        file_count = db.scalar(select(func.count(File.file_id)).where(File.user_id == u.user_id)) or 0
-
-        # Get plan
-        sub = db.scalar(
-            select(Subscription)
-            .where(Subscription.user_id == u.user_id, Subscription.status == "active")
-            .order_by(desc(Subscription.purchased_at))
-        )
-        user_plan = sub.plan if sub else "free"
-
+        st = storage_map.get(u.user_id, {"size": 0, "count": 0})
         result.append({
             "user_id": u.user_id,
             "name": u.name,
             "email": u.email,
             "status": u.status,
-            "plan": user_plan,
-            "storage_used": int(storage),
-            "total_files": file_count,
+            "plan": plan_map.get(u.user_id, "free"),
+            "storage_used": st["size"],
+            "total_files": st["count"],
             "created_at": u.created_at.isoformat() if u.created_at else None,
         })
 
@@ -456,17 +495,26 @@ def list_all_groups(
     total = db.scalar(select(func.count()).select_from(query.subquery()))
     rows = db.execute(query.order_by(desc(Group.created_at)).offset((page - 1) * per_page).limit(per_page)).all()
 
+    if not rows:
+        return {"groups": [], "total": total, "page": page, "per_page": per_page}
+
+    # ── Batched member count: 1 query instead of N queries ──
+    group_ids = [grp.group_id for grp, _ in rows]
+    member_rows = db.execute(
+        select(GroupMember.group_id, func.count(GroupMember.id))
+        .where(GroupMember.group_id.in_(group_ids), GroupMember.status == "approved")
+        .group_by(GroupMember.group_id)
+    ).all()
+    member_map = {r[0]: r[1] for r in member_rows}
+
     result = []
     for grp, creator_name in rows:
-        member_count = db.scalar(
-            select(func.count(GroupMember.id)).where(GroupMember.group_id == grp.group_id, GroupMember.status == "approved")
-        ) or 0
         result.append({
             "group_id": grp.group_id,
             "group_name": grp.group_name,
             "created_by": grp.created_by,
             "creator_name": creator_name,
-            "member_count": member_count,
+            "member_count": member_map.get(grp.group_id, 0),
             "created_at": grp.created_at.isoformat() if grp.created_at else None,
         })
 
@@ -506,12 +554,12 @@ def admin_delete_group(group_id: int, admin_id: int = Depends(get_admin_id), db:
     grp = db.scalar(select(Group).where(Group.group_id == group_id))
     if not grp:
         raise HTTPException(status_code=404, detail="Group not found")
-    # Hard-delete all message records first so group deletion is deterministic,
-    # even if DB foreign keys are inconsistent in older environments.
-    db.execute(text("DELETE FROM message_hides WHERE message_id IN (SELECT id FROM messages WHERE group_id = :gid)"), {"gid": group_id})
-    db.execute(text("DELETE FROM message_reactions WHERE message_id IN (SELECT id FROM messages WHERE group_id = :gid)"), {"gid": group_id})
-    db.execute(text("DELETE FROM message_stars WHERE message_id IN (SELECT id FROM messages WHERE group_id = :gid)"), {"gid": group_id})
-    db.execute(text("DELETE FROM messages WHERE group_id = :gid"), {"gid": group_id})
+
+    # Delete messages via ORM (cascade removes reactions/stars/hides automatically)
+    messages = db.scalars(select(Message).where(Message.group_id == group_id)).all()
+    for msg in messages:
+        db.delete(msg)
+    db.flush()
 
     db.add(ActivityLog(action="group_deleted_admin", detail=f"Admin deleted group '{grp.group_name}' (ID: {group_id})"))
     db.delete(grp)
@@ -624,25 +672,25 @@ def revenue_stats(admin_id: int = Depends(get_admin_id), db: Session = Depends(g
 
     now = datetime.utcnow()
 
-    # Monthly revenue for last 12 months
+    # Monthly revenue for last 12 months — 2 queries instead of 24
+    rev_rows = db.execute(
+        select(
+            extract("year", Subscription.purchased_at).label("y"),
+            extract("month", Subscription.purchased_at).label("m"),
+            func.coalesce(func.sum(Subscription.amount_paid), 0),
+            func.count(Subscription.id),
+        )
+        .where(Subscription.purchased_at >= now - timedelta(days=365))
+        .group_by("y", "m")
+    ).all()
+    rev_map = {(int(r[0]), int(r[1])): {"revenue": float(r[2]), "subs": r[3]} for r in rev_rows}
+
     monthly = []
     for i in range(11, -1, -1):
         d = now - timedelta(days=30 * i)
-        rev = float(db.scalar(
-            select(func.coalesce(func.sum(Subscription.amount_paid), 0))
-            .where(
-                extract("year", Subscription.purchased_at) == d.year,
-                extract("month", Subscription.purchased_at) == d.month,
-            )
-        ) or 0)
-        count = db.scalar(
-            select(func.count(Subscription.id))
-            .where(
-                extract("year", Subscription.purchased_at) == d.year,
-                extract("month", Subscription.purchased_at) == d.month,
-            )
-        ) or 0
-        monthly.append({"month": d.strftime("%b %Y"), "revenue": rev, "subscriptions": count})
+        key = (d.year, d.month)
+        data = rev_map.get(key, {"revenue": 0, "subs": 0})
+        monthly.append({"month": d.strftime("%b %Y"), "revenue": data["revenue"], "subscriptions": data["subs"]})
 
     # Users per plan
     plan_dist_query = (
@@ -717,34 +765,3 @@ def get_activity_logs(
         "page": page,
         "per_page": per_page,
     }
-
-
-# ─────────────────────── SEED / RESET ADMIN (dev convenience) ──────────
-
-@router.post("/seed")
-def seed_admin(db: Session = Depends(get_db)):
-    """Upsert default admin: creates if not exists, resets password if it does. Admin ID=1, password=admin123"""
-    existing = db.scalar(select(Admin).where(Admin.admin_id == 1))
-    if existing:
-        # Always reset to known password so credentials are never stale
-        existing.password_hash = get_password_hash("admin123")
-        db.commit()
-        return {"message": "Admin password reset to 'admin123'", "admin_id": 1}
-
-    admin = Admin(admin_id=1, password_hash=get_password_hash("admin123"))
-    db.add(admin)
-    db.commit()
-    return {"message": "Admin seeded successfully", "admin_id": 1, "password": "admin123"}
-
-
-@router.post("/reset-password")
-def reset_admin_password(db: Session = Depends(get_db)):
-    """Emergency password reset — always sets admin ID=1 password to 'admin123'."""
-    existing = db.scalar(select(Admin).where(Admin.admin_id == 1))
-    if existing:
-        existing.password_hash = get_password_hash("admin123")
-    else:
-        existing = Admin(admin_id=1, password_hash=get_password_hash("admin123"))
-        db.add(existing)
-    db.commit()
-    return {"message": "Admin password reset to 'admin123'", "admin_id": 1}

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, selectinload
-from sqlalchemy import select, and_, not_
+from sqlalchemy import select, and_
 from typing import List
 
 from app.database import get_db
@@ -269,9 +269,6 @@ def clear_chat(group_id: int, user_id: int = Depends(get_current_user_id), db: S
     is_member = db.scalar(select(GroupMember).where(GroupMember.group_id == group_id, GroupMember.user_id == user_id))
     if group.created_by != user_id and (not is_member or is_member.status != "approved"):
         raise HTTPException(status_code=403, detail="Not an approved member of this group")
-    
-    # Get all messages in this group
-    all_group_messages_query = select(Message.id).where(Message.group_id == group_id)
     
     # Get all messages user has NOT ALREADY hidden
     already_hidden_query = select(MessageHide.message_id).where(MessageHide.user_id == user_id)

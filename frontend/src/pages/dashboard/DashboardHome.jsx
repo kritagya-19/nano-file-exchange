@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { nameFromEmail } from "../../utils/displayName";
-import { apiFetch } from "../../utils/api";
+import { apiFetch, API_BASE_URL } from "../../utils/api";
 
 const FILE_TYPE_META = {
   images:    { icon: ImageIcon, color: "from-indigo-500 to-indigo-400", bg: "bg-indigo-50",  text: "text-indigo-600" },
@@ -82,7 +82,8 @@ export function DashboardHome() {
 
   useEffect(() => {
     fetchStats();
-    const interval = setInterval(() => fetchStats(false), 15000);
+    // Poll every 60s — dashboard stats are aggregates that change slowly
+    const interval = setInterval(() => fetchStats(false), 60000);
     return () => clearInterval(interval);
   }, [fetchStats]);
 
@@ -319,7 +320,7 @@ export function DashboardHome() {
                       {f.is_favorite && <Star className="w-4 h-4 text-amber-400" fill="currentColor" />}
                       {f.share_token && <Share2 className="w-4 h-4 text-sky-500" />}
                       <a 
-                        href={`http://localhost:8000/api/files/${f.file_id}`}
+                        href={`${API_BASE_URL}/files/${f.file_id}`}
                         download
                         className="p-1.5 rounded-lg text-slate-400 hover:text-brand hover:bg-brand/10 transition-colors"
                       >

@@ -9,10 +9,10 @@ import io
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import select, func, desc, extract
+from sqlalchemy import select, func, desc
 
 from app.database import get_db
 from app.models.user import User
@@ -262,7 +262,6 @@ def report_files(
                "Shared", "Upload Date"]
     rows = []
     for f, owner_name, owner_email in results:
-        ext = f.file_name.rsplit(".", 1)[-1].lower() if "." in f.file_name else ""
         rows.append([
             f.file_id, f.file_name, _fmt_bytes(f.size), f.size,
             owner_name or "Unknown", owner_email or "",

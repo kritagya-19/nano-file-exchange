@@ -7,7 +7,7 @@ class Folder(Base):
 
     folder_id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(255), nullable=False)
-    user_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False, index=True)
     created_at = Column(TIMESTAMP, server_default=func.now())
 
 
@@ -19,11 +19,11 @@ class File(Base):
     size = Column(BigInteger, nullable=False, default=0)
     file_path = Column(String(500))
     cloud_url = Column(String(500))
-    user_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
-    uploaded_at = Column(TIMESTAMP, server_default=func.now())
-    is_favorite = Column(Boolean, default=False)
-    share_token = Column(String(64), unique=True, nullable=True)
-    folder_id = Column(Integer, ForeignKey("folders.folder_id", ondelete="SET NULL"), nullable=True)
+    user_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False, index=True)
+    uploaded_at = Column(TIMESTAMP, server_default=func.now(), index=True)
+    is_favorite = Column(Boolean, default=False, index=True)
+    share_token = Column(String(64), unique=True, nullable=True, index=True)
+    folder_id = Column(Integer, ForeignKey("folders.folder_id", ondelete="SET NULL"), nullable=True, index=True)
 
 
 class StorageDetail(Base):

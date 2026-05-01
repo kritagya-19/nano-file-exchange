@@ -3,9 +3,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select, func
 
 from app.database import get_db
-from app.models.file import File, Folder, StorageDetail
-from app.models.group import Group, GroupMember
-from app.models.user import User
+from app.models.file import File, Folder
+from app.models.group import GroupMember
 from app.models.subscription import Subscription
 from app.middleware.auth import get_current_user_id
 
@@ -78,16 +77,20 @@ def get_dashboard_stats(user_id: int = Depends(get_current_user_id), db: Session
             "share_token": f.share_token,
         })
 
-    # File type breakdown
+    # File type breakdown — computed in SQL, not Python
+    # We fetch (file_name, size) for this user, but only the columns we need.
+    file_summary = db.execute(
+        select(File.file_name, File.size).where(File.user_id == user_id)
+    ).all()
+
     type_breakdown = {}
-    all_files = db.scalars(select(File).where(File.user_id == user_id)).all()
-    for f in all_files:
-        ext = f.file_name.rsplit(".", 1)[-1].lower() if "." in f.file_name else "other"
+    for fname, fsize in file_summary:
+        ext = fname.rsplit(".", 1)[-1].lower() if "." in fname else "other"
         category = _categorize_extension(ext)
         if category not in type_breakdown:
             type_breakdown[category] = {"count": 0, "size": 0}
         type_breakdown[category]["count"] += 1
-        type_breakdown[category]["size"] += f.size or 0
+        type_breakdown[category]["size"] += fsize or 0
 
     # Determine user's plan-based storage limit
     sub = db.scalar(

@@ -16,7 +16,6 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime, timedelta
 import asyncio
-import json as _json
 
 from app.database import get_db
 from app.models.subscription import Subscription

@@ -1,12 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import select, text
+from sqlalchemy import select
 from typing import List
 import uuid
 
 from app.database import get_db
 from app.models.group import Group, GroupMember, GroupInvitation
 from app.models.user import User
+from app.models.message import Message
 from app.schemas.group import GroupCreate, GroupResponse, GroupMemberAdd, GroupMemberResponse, InviteByEmail, InvitationResponse
 from app.middleware.auth import get_current_user_id
 from app.utils.email import send_invite_email
@@ -194,11 +195,11 @@ def delete_group(group_id: int, user_id: int = Depends(get_current_user_id), db:
     if not group:
         raise HTTPException(status_code=403, detail="Not authorized or group not found")
 
-    # Force-delete message trees for deterministic cleanup even on older DBs.
-    db.execute(text("DELETE FROM message_hides WHERE message_id IN (SELECT id FROM messages WHERE group_id = :gid)"), {"gid": group_id})
-    db.execute(text("DELETE FROM message_reactions WHERE message_id IN (SELECT id FROM messages WHERE group_id = :gid)"), {"gid": group_id})
-    db.execute(text("DELETE FROM message_stars WHERE message_id IN (SELECT id FROM messages WHERE group_id = :gid)"), {"gid": group_id})
-    db.execute(text("DELETE FROM messages WHERE group_id = :gid"), {"gid": group_id})
+    # Delete all messages (cascade via ORM will delete reactions/stars/hides)
+    messages = db.scalars(select(Message).where(Message.group_id == group_id)).all()
+    for msg in messages:
+        db.delete(msg)
+    db.flush()
 
     db.delete(group)
     db.commit()

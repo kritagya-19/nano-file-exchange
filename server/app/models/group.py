@@ -7,7 +7,7 @@ class Group(Base):
 
     group_id = Column(Integer, primary_key=True, autoincrement=True)
     group_name = Column(String(255), nullable=False)
-    created_by = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
+    created_by = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False, index=True)
     created_at = Column(TIMESTAMP, server_default=func.now())
 
 
@@ -15,9 +15,9 @@ class GroupMember(Base):
     __tablename__ = "group_members"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    group_id = Column(Integer, ForeignKey("groups.group_id", ondelete="CASCADE"), nullable=False)
-    user_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
-    status = Column(String(50), default="approved") # pending, approved, rejected
+    group_id = Column(Integer, ForeignKey("groups.group_id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False, index=True)
+    status = Column(String(50), default="approved", index=True) # pending, approved, rejected
     joined_at = Column(TIMESTAMP, server_default=func.now())
 
     __table_args__ = (
@@ -29,10 +29,10 @@ class GroupInvitation(Base):
     __tablename__ = "group_invitations"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    group_id = Column(Integer, ForeignKey("groups.group_id", ondelete="CASCADE"), nullable=False)
-    invited_email = Column(String(255), nullable=False)
-    invite_token = Column(String(64), unique=True, nullable=False)
+    group_id = Column(Integer, ForeignKey("groups.group_id", ondelete="CASCADE"), nullable=False, index=True)
+    invited_email = Column(String(255), nullable=False, index=True)
+    invite_token = Column(String(64), unique=True, nullable=False, index=True)
     invited_by = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
-    status = Column(String(50), default="pending")  # pending, accepted, expired
+    status = Column(String(50), default="pending", index=True)  # pending, accepted, expired
     created_at = Column(TIMESTAMP, server_default=func.now())
 

@@ -148,6 +148,7 @@ function UploadToast({ uploads, onCancel }) {
 // ─── MAIN COMPONENT ─────────────────────────────────────────────────────────
 export function MyFiles() {
   const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [filter, setFilter] = useState("all");
   const [files, setFiles] = useState([]);
   const [folders, setFolders] = useState([]);
@@ -157,6 +158,12 @@ export function MyFiles() {
   const uploadControllers = useRef({});
   const fileInputRef = useRef(null);
   const [dragOver, setDragOver] = useState(false);
+
+  // Debounce search input — avoids re-filtering on every keystroke
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQuery(query), 300);
+    return () => clearTimeout(timer);
+  }, [query]);
 
   // Modals
   const [shareModal, setShareModal] = useState({ open: false, url: "", fileName: "" });
@@ -193,13 +200,8 @@ export function MyFiles() {
     fetchFolders();
   }, [fetchFiles, fetchFolders]);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetchFiles();
-      fetchFolders();
-    }, 10000);
-    return () => clearInterval(interval);
-  }, [fetchFiles, fetchFolders]);
+  // Note: no periodic polling — file list is refreshed after every user action
+  // (upload, delete, move, share, etc.) so blind polling is unnecessary.
 
   // ──────── UPLOAD LOGIC ──────────────────────────────────────────────────
   const startUpload = useCallback((file) => {
@@ -383,7 +385,7 @@ export function MyFiles() {
 
   // ──────── FILTERING ─────────────────────────────────────────────────────
   const filteredFiles = files.filter((f) => {
-    const matchSearch = f.file_name.toLowerCase().includes(query.toLowerCase());
+    const matchSearch = f.file_name.toLowerCase().includes(debouncedQuery.toLowerCase());
     if (!matchSearch) return false;
     if (filter === "all") return true;
     const ext = f.file_name.split(".").pop().toLowerCase();
