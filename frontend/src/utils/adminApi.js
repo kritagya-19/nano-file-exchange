@@ -2,7 +2,7 @@
  * Admin API utilities — separate token storage from regular user auth.
  */
 
-export const API_BASE_URL = "http://localhost:8000/api";
+export const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
 const ADMIN_KEY = "nanofile_admin";
 
 export function getAdminToken() {

@@ -12,3 +12,4 @@ pydantic-settings==2.7.1
 python-dotenv==1.0.1
 PyJWT==2.10.1
 orjson==3.10.18
+gunicorn==21.2.0

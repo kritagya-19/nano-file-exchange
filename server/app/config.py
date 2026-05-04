@@ -30,8 +30,13 @@ class Settings(BaseSettings):
     # Frontend URL for invitation links
     FRONTEND_URL: str = "http://localhost:5173"
 
+    # Direct Database URL (useful for PaaS like Aiven/Render)
+    DB_URL: str | None = None
+
     @property
     def DATABASE_URL(self) -> str:
+        if self.DB_URL:
+            return self.DB_URL
         return f"mysql+pymysql://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
 
     class Config:

@@ -5,6 +5,8 @@ import { apiFetch, uploadFileWithProgress } from "../../utils/api";
 import { useAuth } from "../../context/AuthContext";
 
 export function GroupDetail() {
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
+
   const { groupId } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -430,7 +432,7 @@ export function GroupDetail() {
                               <p className={`text-[13px] font-semibold truncate ${isMe ? 'text-white' : 'text-slate-700'}`} title={msg.file_name}>{msg.file_name || "Attachment"}</p>
                               <p className={`text-[11px] opacity-80 ${isMe ? 'text-indigo-100' : 'text-slate-500'}`}>Document</p>
                             </div>
-                            <a href={`http://localhost:8000${msg.file_url}`} download target="_blank" rel="noopener noreferrer" className={`p-1.5 rounded-md hover:bg-black/10 transition-colors ${isMe ? 'text-white' : 'text-brand'}`}>
+                            <a href={`${BACKEND_URL}${msg.file_url}`} download target="_blank" rel="noopener noreferrer" className={`p-1.5 rounded-md hover:bg-black/10 transition-colors ${isMe ? 'text-white' : 'text-brand'}`}>
                               <Download className="w-4 h-4" />
                             </a>
                           </div>
