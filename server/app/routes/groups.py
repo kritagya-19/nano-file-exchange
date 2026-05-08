@@ -293,9 +293,9 @@ def accept_invitation(token: str, user_id: int = Depends(get_current_user_id), d
     if not current_user:
         raise HTTPException(status_code=404, detail="User not found.")
 
-    if current_user.email.lower() != invitation.invited_email.lower():
-        raise HTTPException(status_code=403, detail="This invitation was sent to a different email address.")
-
+    # Note: We skip the strict email check here. The `invite_token` is a secure UUID.
+    # If the user has the token, they have proven access to the invitation.
+    # This allows users to sign up with a different email than they were invited with.
     # 3. Check if already a member
     existing = db.scalar(
         select(GroupMember).where(GroupMember.group_id == invitation.group_id, GroupMember.user_id == user_id)
