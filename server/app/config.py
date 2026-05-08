@@ -20,12 +20,10 @@ class Settings(BaseSettings):
     # File storage
     UPLOAD_DIR: str = "uploads"
 
-    # Email (SMTP) for invitations
-    SMTP_HOST: str = "smtp.gmail.com"
-    SMTP_PORT: int = 587
-    SMTP_USER: str = ""
-    SMTP_PASSWORD: str = ""
-    SMTP_FROM_EMAIL: str = ""
+    # EmailJS Configuration
+    EMAILJS_SERVICE_ID: str = ""
+    EMAILJS_TEMPLATE_ID: str = ""
+    EMAILJS_PUBLIC_KEY: str = ""
 
     # Frontend URL for invitation links
     FRONTEND_URL: str = "http://localhost:5173"

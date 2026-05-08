@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select, desc
 from pydantic import BaseModel
 from typing import Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 import asyncio
 
 from app.database import get_db
@@ -96,7 +96,7 @@ async def checkout(body: CheckoutRequest, user_id: int = Depends(get_current_use
     await asyncio.sleep(1.5)
 
     # ── Calculate renewal date ──
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     if body.billing_cycle == "annual":
         renewal = now + timedelta(days=365)
     else:

@@ -6,7 +6,7 @@ Uses Python's built-in csv + io — zero new dependencies.
 
 import csv
 import io
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import Optional
 
 from fastapi import APIRouter, Depends
@@ -143,7 +143,7 @@ def report_platform_summary(
     for plan, count in sorted(plan_dist.items()):
         rows.append([f"Users on {plan.capitalize()} Plan", count])
 
-    now = datetime.utcnow().strftime("%Y%m%d_%H%M")
+    now = datetime.now(UTC).strftime("%Y%m%d_%H%M")
     return _csv_response(
         rows[1:], rows[0],
         f"platform_summary_{now}.csv",
@@ -196,7 +196,7 @@ def report_users(
             _fmt_dt(u.created_at),
         ])
 
-    now = datetime.utcnow().strftime("%Y%m%d_%H%M")
+    now = datetime.now(UTC).strftime("%Y%m%d_%H%M")
     return _csv_response(rows, headers, f"users_report_{now}.csv")
 
 
@@ -234,7 +234,7 @@ def report_revenue(
             _fmt_dt(sub.purchased_at), _fmt_dt(sub.renewal_date),
         ])
 
-    now = datetime.utcnow().strftime("%Y%m%d_%H%M")
+    now = datetime.now(UTC).strftime("%Y%m%d_%H%M")
     return _csv_response(rows, headers, f"revenue_report_{now}.csv")
 
 
@@ -269,7 +269,7 @@ def report_files(
             _fmt_dt(f.uploaded_at),
         ])
 
-    now = datetime.utcnow().strftime("%Y%m%d_%H%M")
+    now = datetime.now(UTC).strftime("%Y%m%d_%H%M")
     return _csv_response(rows, headers, f"files_report_{now}.csv")
 
 
@@ -310,7 +310,7 @@ def report_storage(
             int(usage), fcount, f"{pct:.1f}%",
         ])
 
-    now = datetime.utcnow().strftime("%Y%m%d_%H%M")
+    now = datetime.now(UTC).strftime("%Y%m%d_%H%M")
     return _csv_response(rows, headers, f"storage_report_{now}.csv")
 
 
@@ -347,7 +347,7 @@ def report_groups(
             total_m, approved, pending, _fmt_dt(grp.created_at),
         ])
 
-    now = datetime.utcnow().strftime("%Y%m%d_%H%M")
+    now = datetime.now(UTC).strftime("%Y%m%d_%H%M")
     return _csv_response(rows, headers, f"groups_report_{now}.csv")
 
 
@@ -382,5 +382,5 @@ def report_activity_logs(
             log.ip_address or "", _fmt_dt(log.created_at),
         ])
 
-    now = datetime.utcnow().strftime("%Y%m%d_%H%M")
+    now = datetime.now(UTC).strftime("%Y%m%d_%H%M")
     return _csv_response(rows, headers, f"activity_logs_{now}.csv")

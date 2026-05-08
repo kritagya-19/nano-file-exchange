@@ -1,7 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import ORJSONResponse
 from contextlib import asynccontextmanager
 from sqlalchemy import text
@@ -164,9 +163,8 @@ app.add_middleware(
     expose_headers=["Content-Disposition"],
 )
 
-# Mount uploads directory for static file access
+# Ensure upload directory exists (files served via authenticated API routes only)
 os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
-app.mount("/api/files/download", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
 
 # Include all API routes under /api
 app.include_router(api_router, prefix="/api")

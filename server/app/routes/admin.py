@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select, func, desc, or_, extract
 from pydantic import BaseModel
 from typing import Optional, List
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 import os
 
 from app.database import get_db
@@ -23,6 +23,7 @@ from app.models.activity_log import ActivityLog
 from app.models.plan import Plan
 from app.utils.security import verify_password, create_access_token
 from app.config import settings
+from app.utils.file_ops import delete_file_from_disk as _delete_file_from_disk
 
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi import Security
@@ -35,35 +36,9 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def _resolve_abs_file_path(file_path: str | None) -> str | None:
-    """Safely resolve a stored relative filename to an absolute path.
-
-    SECURITY: All paths are jailed inside UPLOAD_DIR. Absolute paths or
-    directory traversal sequences are rejected.
-    """
-    if not file_path:
-        return None
-    basename = os.path.basename(file_path)
-    if not basename or basename != file_path:
-        logger.warning("Rejected suspicious file_path from DB: %s", file_path)
-        return None
-    upload_dir = os.path.realpath(settings.UPLOAD_DIR)
-    full_path = os.path.realpath(os.path.join(upload_dir, basename))
-    if not full_path.startswith(upload_dir + os.sep) and full_path != upload_dir:
-        logger.warning("Path jail escape attempt: %s", full_path)
-        return None
-    return full_path
-
-
-def _delete_file_from_disk(file_path: str | None) -> None:
-    full_path = _resolve_abs_file_path(file_path)
-    if not full_path:
-        return
-    if os.path.exists(full_path):
-        try:
-            os.remove(full_path)
-        except OSError as e:
-            logger.error("Failed to delete file %s: %s", full_path, e)
+def _sanitize_like(value: str) -> str:
+    """Escape LIKE wildcard characters to prevent query manipulation."""
+    return value.replace("%", "\\%").replace("_", "\\_")
 
 
 # ─────────────────────── Admin Auth Middleware ───────────────────────
@@ -161,7 +136,7 @@ def admin_dashboard(admin_id: int = Depends(get_admin_id), db: Session = Depends
     ) or 0)
 
     # Monthly revenue (current month)
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
     monthly_revenue = float(db.scalar(
         select(func.coalesce(func.sum(Subscription.amount_paid), 0))
         .where(
@@ -271,7 +246,8 @@ def list_users(
 ):
     query = select(User)
     if search:
-        query = query.where(or_(User.name.ilike(f"%{search}%"), User.email.ilike(f"%{search}%")))
+        safe = _sanitize_like(search)
+        query = query.where(or_(User.name.ilike(f"%{safe}%"), User.email.ilike(f"%{safe}%")))
     if status:
         query = query.where(User.status == status)
 
@@ -431,7 +407,8 @@ def list_all_files(
     query = select(File, User.name, User.email).outerjoin(User, File.user_id == User.user_id)
 
     if search:
-        query = query.where(File.file_name.ilike(f"%{search}%"))
+        safe = _sanitize_like(search)
+        query = query.where(File.file_name.ilike(f"%{safe}%"))
     if user_id:
         query = query.where(File.user_id == user_id)
     if min_size:
@@ -490,7 +467,8 @@ def list_all_groups(
     query = select(Group, User.name).outerjoin(User, Group.created_by == User.user_id)
 
     if search:
-        query = query.where(Group.group_name.ilike(f"%{search}%"))
+        safe = _sanitize_like(search)
+        query = query.where(Group.group_name.ilike(f"%{safe}%"))
 
     total = db.scalar(select(func.count()).select_from(query.subquery()))
     rows = db.execute(query.order_by(desc(Group.created_at)).offset((page - 1) * per_page).limit(per_page)).all()
@@ -670,7 +648,7 @@ def storage_overview(admin_id: int = Depends(get_admin_id), db: Session = Depend
 def revenue_stats(admin_id: int = Depends(get_admin_id), db: Session = Depends(get_db)):
     total_revenue = float(db.scalar(select(func.coalesce(func.sum(Subscription.amount_paid), 0))) or 0)
 
-    now = datetime.utcnow()
+    now = datetime.now(UTC)
 
     # Monthly revenue for last 12 months — 2 queries instead of 24
     rev_rows = db.execute(

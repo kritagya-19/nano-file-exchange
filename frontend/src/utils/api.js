@@ -68,7 +68,9 @@ export const apiFetch = async (endpoint, options = {}) => {
     throw new Error(errorMsg);
   }
 
-  return response.json();
+  // Safe JSON parsing — handles 204 No Content and empty bodies without crashing
+  const text = await response.text();
+  return text ? JSON.parse(text) : {};
 };
 
 /**

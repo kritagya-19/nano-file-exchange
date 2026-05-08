@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowRight,
@@ -23,19 +23,21 @@ import {
   Clock,
   TrendingUp,
   Download,
+  Activity
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { nameFromEmail } from "../../utils/displayName";
 import { apiFetch, API_BASE_URL } from "../../utils/api";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 
 const FILE_TYPE_META = {
-  images:    { icon: ImageIcon, color: "from-indigo-500 to-indigo-400", bg: "bg-indigo-50",  text: "text-indigo-600" },
-  documents: { icon: FileText,  color: "from-brand to-brand-light",     bg: "bg-brand/10",   text: "text-brand" },
-  videos:    { icon: Video,     color: "from-slate-700 to-slate-600",   bg: "bg-slate-100",  text: "text-slate-700" },
-  audio:     { icon: Music,     color: "from-sky-500 to-sky-400",       bg: "bg-sky-50",     text: "text-sky-600" },
-  archives:  { icon: Archive,   color: "from-slate-500 to-slate-400",   bg: "bg-slate-100",  text: "text-slate-600" },
-  code:      { icon: Code2,     color: "from-blue-600 to-blue-500",     bg: "bg-blue-50",    text: "text-blue-600" },
-  other:     { icon: FileIcon,  color: "from-slate-400 to-slate-300",   bg: "bg-slate-50",   text: "text-slate-500" },
+  images:    { icon: ImageIcon, color: "from-indigo-500 to-indigo-400", hex: "#6366f1", bg: "bg-indigo-50",  text: "text-indigo-600" },
+  documents: { icon: FileText,  color: "from-emerald-500 to-emerald-400", hex: "#10b981", bg: "bg-emerald-50",   text: "text-emerald-600" },
+  videos:    { icon: Video,     color: "from-rose-500 to-rose-400",   hex: "#f43f5e", bg: "bg-rose-50",  text: "text-rose-600" },
+  audio:     { icon: Music,     color: "from-amber-500 to-amber-400", hex: "#f59e0b", bg: "bg-amber-50",     text: "text-amber-600" },
+  archives:  { icon: Archive,   color: "from-slate-500 to-slate-400", hex: "#64748b", bg: "bg-slate-100",  text: "text-slate-600" },
+  code:      { icon: Code2,     color: "from-blue-600 to-blue-500",   hex: "#2563eb", bg: "bg-blue-50",    text: "text-blue-600" },
+  other:     { icon: FileIcon,  color: "from-slate-400 to-slate-300", hex: "#94a3b8", bg: "bg-slate-50",   text: "text-slate-500" },
 };
 
 function formatBytes(bytes) {
@@ -82,7 +84,6 @@ export function DashboardHome() {
 
   useEffect(() => {
     fetchStats();
-    // Poll every 60s — dashboard stats are aggregates that change slowly
     const interval = setInterval(() => fetchStats(false), 60000);
     return () => clearInterval(interval);
   }, [fetchStats]);
@@ -95,14 +96,31 @@ export function DashboardHome() {
   const hour = new Date().getHours();
   const greet = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 
+  const typeBreakdown = stats?.type_breakdown || {};
+  
+  const chartData = useMemo(() => {
+    return Object.entries(typeBreakdown)
+      .filter(([, data]) => data.size > 0)
+      .map(([category, data]) => ({
+        name: category,
+        value: data.size,
+        count: data.count,
+        color: FILE_TYPE_META[category]?.hex || FILE_TYPE_META.other.hex
+      }))
+      .sort((a, b) => b.value - a.value);
+  }, [typeBreakdown]);
+
   if (loading && !stats) {
     return (
-      <div className="flex items-center justify-center h-[60vh]">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-brand/10 flex items-center justify-center animate-pulse">
-            <Sparkles className="w-6 h-6 text-brand" />
+      <div className="flex items-center justify-center h-[70vh]">
+        <div className="flex flex-col items-center gap-6">
+          <div className="relative flex items-center justify-center">
+            <div className="absolute w-24 h-24 rounded-full border-t-2 border-brand animate-spin"></div>
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand to-brand-light flex items-center justify-center shadow-xl shadow-brand/20">
+              <Sparkles className="w-8 h-8 text-white animate-pulse" />
+            </div>
           </div>
-          <p className="text-sm text-muted font-medium animate-pulse">Loading your dashboard...</p>
+          <p className="text-sm text-slate-500 font-medium tracking-wide uppercase">Preparing Workspace</p>
         </div>
       </div>
     );
@@ -117,93 +135,59 @@ export function DashboardHome() {
   const starredFiles = stats?.starred_files || 0;
   const totalFolders = stats?.total_folders || 0;
   const recentFiles = stats?.recent_files || [];
-  const typeBreakdown = stats?.type_breakdown || {};
-
-  const storageColor = storagePct > 90 ? "from-rose-500 to-rose-400" : storagePct > 70 ? "from-brand-dark to-brand" : "from-brand to-brand-light";
 
   return (
-    <div className="space-y-8 pb-8 md:pb-12">
-      {/* ─── Hero Header ─── */}
-      <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">
-            {greet},{" "}
-            <span className="bg-gradient-to-r from-brand-dark to-brand bg-clip-text text-transparent">
-              {displayName.split(" ")[0] || displayName}
-            </span>
-            ! <span className="inline-block animate-bounce" aria-hidden>👋</span>
-          </h1>
-          <p className="mt-1.5 text-sm text-muted sm:text-base">
-            Here&apos;s what&apos;s happening with your files today.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2.5">
-          <button
-            onClick={handleRefresh}
-            disabled={refreshing}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-ink shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50"
-          >
-            <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
-            Refresh
-          </button>
-          <button
-            onClick={() => navigate("/dashboard/files")}
-            className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-dark to-brand px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-brand/25 transition hover:shadow-xl hover:shadow-brand/30 hover:-translate-y-0.5"
-          >
-            <CloudUpload className="h-4 w-4" />
-            Upload Files
-          </button>
+    <div className="space-y-6 pb-12 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
+      {/* ─── Hero Banner ─── */}
+      <div className="relative overflow-hidden rounded-[2rem] bg-white border border-slate-100 shadow-sm">
+        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 rounded-full bg-brand/5 blur-3xl pointer-events-none"></div>
+        <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-80 h-80 rounded-full bg-indigo-500/5 blur-3xl pointer-events-none"></div>
+        
+        <div className="relative p-8 sm:p-10 flex flex-col md:flex-row md:items-center justify-between gap-8 z-10">
+          <div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-50 border border-slate-100 text-xs font-semibold text-slate-500 mb-5">
+              <Activity className="w-3.5 h-3.5 text-emerald-500" /> 
+              System Online & Secure
+            </div>
+            <h1 className="text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">
+              {greet},{" "}
+              <span className="bg-gradient-to-r from-brand to-indigo-500 bg-clip-text text-transparent">
+                {displayName.split(" ")[0] || displayName}
+              </span>
+            </h1>
+            <p className="mt-3 text-base text-slate-500 max-w-xl leading-relaxed">
+              Your intelligent workspace is ready. You have <strong className="text-slate-700">{totalFiles} files</strong> taking up <strong className="text-slate-700">{formatBytes(storageUsed)}</strong> of space.
+            </p>
+          </div>
+          
+          <div className="flex flex-wrap items-center gap-3 shrink-0">
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="inline-flex items-center gap-2 rounded-xl bg-white border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 focus:ring-2 focus:ring-brand/20 disabled:opacity-50"
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin text-brand" : "text-slate-400"}`} />
+              Sync
+            </button>
+            <button
+              onClick={() => navigate("/dashboard/files")}
+              className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-slate-900/10 transition hover:bg-slate-800 focus:ring-2 focus:ring-slate-900/20 hover:-translate-y-0.5"
+            >
+              <CloudUpload className="h-4 w-4 text-slate-300" />
+              Upload Files
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* ─── Current Plan Badge ─── */}
-      {stats?.current_plan && (
-        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-white shadow-lg ${
-              stats.current_plan === "max"
-                ? "bg-slate-900"
-                : stats.current_plan === "pro"
-                ? "bg-gradient-to-br from-brand-dark to-brand"
-                : "bg-slate-500"
-            }`}>
-              {stats.current_plan === "max" ? (
-                <Crown className="h-5 w-5" />
-              ) : stats.current_plan === "pro" ? (
-                <Zap className="h-5 w-5" />
-              ) : (
-                <Sparkles className="h-5 w-5" />
-              )}
-            </div>
-            <div>
-              <p className="text-sm font-bold text-ink capitalize">{stats.current_plan} Plan</p>
-              <p className="text-xs text-muted mt-0.5">
-                {stats.current_plan === "free"
-                  ? "Upgrade to unlock more storage & features"
-                  : "You're on a premium plan"}
-              </p>
-            </div>
-          </div>
-          {stats.current_plan !== "max" && (
-            <button
-              onClick={() => navigate("/dashboard/pricing")}
-              className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-brand-dark to-brand px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-brand/20 hover:shadow-lg transition-all"
-            >
-              <Zap className="h-3.5 w-3.5" />
-              {stats.current_plan === "free" ? "Upgrade Now" : "Upgrade to Max"}
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* ─── Stats Cards ─── */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {/* ─── Stats Grid ─── */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Total Files"
           value={totalFiles}
           hint={`${totalFolders} folder${totalFolders !== 1 ? "s" : ""}`}
           icon={FolderOpen}
-          gradient="from-brand to-brand-light"
+          gradient="from-brand to-indigo-500"
           to="/dashboard/files"
         />
         <StatCard
@@ -211,199 +195,301 @@ export function DashboardHome() {
           value={activeGroups}
           hint="Collaborations"
           icon={Users}
-          gradient="from-indigo-500 to-indigo-400"
+          gradient="from-emerald-500 to-teal-400"
           to="/dashboard/groups"
         />
         <StatCard
-          title="Shared Files"
+          title="Shared Links"
           value={sharedFiles}
-          hint="Public links"
+          hint="Public access"
           icon={Share2}
-          gradient="from-sky-500 to-sky-400"
+          gradient="from-amber-500 to-orange-400"
           to="/dashboard/shared"
         />
         <StatCard
           title="Starred"
           value={starredFiles}
-          hint="Favourites"
+          hint="Quick access"
           icon={Star}
-          gradient="from-slate-700 to-slate-600"
+          gradient="from-rose-500 to-pink-500"
           to="/dashboard/starred"
         />
       </div>
 
-      {/* ─── Storage Card (Premium) ─── */}
-      <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm relative overflow-hidden">
-        <div className="absolute -right-8 -top-8 w-40 h-40 rounded-full bg-gradient-to-br from-brand/10 to-brand-light/5 blur-2xl pointer-events-none"></div>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
-          <div className="flex items-center gap-4">
-            <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${storageColor} text-white shadow-lg`}>
-              <HardDrive className="h-6 w-6" />
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold text-muted">Storage Used</h3>
-              <p className="text-2xl font-extrabold text-ink tracking-tight">
-                {formatBytes(storageUsed)}
-                <span className="text-sm font-medium text-muted ml-2">/ {formatBytes(storageLimit)}</span>
-              </p>
-            </div>
-          </div>
-          <div className="text-right">
-            <p className={`text-3xl font-black tracking-tight bg-gradient-to-r ${storageColor} bg-clip-text text-transparent`}>
-              {storagePct}%
-            </p>
-            <p className="text-xs text-muted mt-0.5">capacity</p>
-          </div>
-        </div>
-        <div className="mt-5 h-3 overflow-hidden rounded-full bg-slate-100 relative z-10">
-          <div
-            className={`h-full rounded-full bg-gradient-to-r ${storageColor} transition-all duration-1000 ease-out relative`}
-            style={{ width: `${Math.max(storagePct, 1)}%` }}
-          >
-            <div className="absolute inset-0 bg-white/20 rounded-full animate-pulse"></div>
-          </div>
-        </div>
-      </div>
-
-      {/* ─── Main Grid ─── */}
-      <div className="grid gap-6 lg:grid-cols-5">
+      {/* ─── Bento Grid Section ─── */}
+      <div className="grid gap-6 lg:grid-cols-3">
         
-        {/* ── Recent Files ── */}
-        <div className="lg:col-span-3 rounded-3xl border border-slate-100 bg-white shadow-sm overflow-hidden">
-          <div className="flex items-center justify-between px-6 pt-6 pb-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand/10 text-brand">
-                <Clock className="h-4 w-4" />
-              </div>
-              <h2 className="text-lg font-bold text-ink">Recent Files</h2>
+        {/* ── Storage Card ── */}
+        <div className="lg:col-span-1 flex flex-col gap-6">
+          <div className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm relative overflow-hidden group flex-1">
+            <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity duration-500 pointer-events-none">
+              <HardDrive className="w-32 h-32 text-slate-900 rotate-12" />
             </div>
-            <Link to="/dashboard/files" className="text-sm font-semibold text-brand hover:text-brand/80 flex items-center gap-1 transition-colors">
-              View All <ArrowUpRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-          
-          {recentFiles.length === 0 ? (
-            <div className="px-6 pb-8 pt-4">
-              <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/50 py-16 text-center">
-                <div className="flex h-16 w-16 items-center justify-center rounded-[1.25rem] bg-white text-slate-300 shadow-sm ring-1 ring-slate-100">
-                  <FileText className="h-8 w-8" strokeWidth={1.5} />
+            <div className="relative z-10 h-full flex flex-col">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-700">
+                  <HardDrive className="w-5 h-5" />
                 </div>
-                <p className="mt-5 font-semibold text-ink">No files yet</p>
-                <p className="mt-1.5 max-w-xs text-sm text-muted">Upload your first file to see it here.</p>
-                <button 
-                  onClick={() => navigate("/dashboard/files")}
-                  className="mt-5 inline-flex items-center gap-2 rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-brand/20 hover:bg-brand/90 transition"
-                >
-                  <CloudUpload className="h-4 w-4" /> Upload Now
-                </button>
+                <div>
+                  <h3 className="font-bold text-slate-900">Storage Usage</h3>
+                  <p className="text-xs text-slate-500">Plan limit: {formatBytes(storageLimit)}</p>
+                </div>
+              </div>
+
+              <div className="flex-1 flex flex-col justify-center items-center py-6">
+                <div className="relative w-40 h-40 drop-shadow-md">
+                  <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="40" fill="transparent" stroke="#f1f5f9" strokeWidth="12" />
+                    <circle 
+                      cx="50" 
+                      cy="50" 
+                      r="40" 
+                      fill="transparent" 
+                      stroke="currentColor" 
+                      strokeWidth="12" 
+                      strokeDasharray={`${2 * Math.PI * 40}`} 
+                      strokeDashoffset={`${2 * Math.PI * 40 * (1 - Math.max(storagePct, 2) / 100)}`}
+                      className={`transition-all duration-1000 ease-out ${storagePct > 90 ? 'text-rose-500' : storagePct > 70 ? 'text-amber-500' : 'text-brand'}`}
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-3xl font-black text-slate-900 tracking-tighter">{storagePct}%</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Used</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-auto">
+                <div className="flex justify-between items-end mb-2">
+                  <div>
+                    <p className="text-xs font-semibold text-slate-500 mb-1">Total Used</p>
+                    <p className="text-xl font-bold text-slate-900">{formatBytes(storageUsed)}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs font-semibold text-slate-500 mb-1">Available</p>
+                    <p className="text-xl font-bold text-slate-400">{formatBytes(storageLimit - storageUsed)}</p>
+                  </div>
+                </div>
               </div>
             </div>
-          ) : (
-            <div className="divide-y divide-slate-50">
-              {recentFiles.map((f) => {
-                const meta = FILE_TYPE_META[f.file_type] || FILE_TYPE_META[_categorize(f.file_type)] || FILE_TYPE_META.other;
-                const Icon = meta.icon;
-                return (
-                  <div key={f.file_id} className="flex items-center gap-4 px-6 py-3.5 hover:bg-slate-50/80 transition-colors group">
-                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${meta.bg} ${meta.text}`}>
-                      <Icon className="h-5 w-5" strokeWidth={1.75}/>
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-ink truncate">{f.file_name}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-xs text-muted">{formatBytes(f.size)}</span>
-                        <span className="text-slate-200">·</span>
-                        <span className="text-xs text-muted">{timeAgo(f.uploaded_at)}</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      {f.is_favorite && <Star className="w-4 h-4 text-amber-400" fill="currentColor" />}
-                      {f.share_token && <Share2 className="w-4 h-4 text-sky-500" />}
-                      <a 
-                        href={`${API_BASE_URL}/files/${f.file_id}`}
-                        download
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-brand hover:bg-brand/10 transition-colors"
-                      >
-                        <Download className="w-4 h-4" />
-                      </a>
-                    </div>
+          </div>
+
+          {/* Current Plan Mini-card */}
+          {stats?.current_plan && (
+            <div className="rounded-[2rem] border border-slate-100 bg-slate-900 p-6 shadow-xl shadow-slate-900/10 text-white relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-brand/20 to-transparent pointer-events-none"></div>
+              <div className="relative z-10 flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 rounded-xl bg-white/10 backdrop-blur-md border border-white/10 shadow-inner">
+                    {stats.current_plan === "max" ? <Crown className="w-5 h-5 text-amber-400" /> : <Zap className="w-5 h-5 text-brand-light" />}
                   </div>
-                );
-              })}
+                  <div>
+                    <p className="text-xs text-slate-400 font-medium tracking-wide uppercase">Current Plan</p>
+                    <p className="font-bold text-lg capitalize flex items-center gap-2">
+                      {stats.current_plan}
+                      {stats.current_plan === "max" && <span className="px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-400 text-[10px] uppercase">Ultimate</span>}
+                    </p>
+                  </div>
+                </div>
+                {stats.current_plan !== "max" && (
+                  <button onClick={() => navigate("/dashboard/pricing")} className="px-4 py-2 rounded-xl bg-white text-slate-900 text-sm font-bold shadow-sm hover:bg-slate-50 transition">
+                    Upgrade
+                  </button>
+                )}
+              </div>
             </div>
           )}
         </div>
 
-        {/* ── Right Column ── */}
-        <div className="lg:col-span-2 space-y-6">
+        {/* ── Type Breakdown & Analytics ── */}
+        <div className="lg:col-span-2 flex flex-col gap-6">
           
-          {/* Quick Actions */}
-          <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
-            <h2 className="text-base font-bold text-ink mb-4 flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-brand" /> Quick Actions
-            </h2>
-            <div className="space-y-2.5">
-              <QuickAction
-                title="Upload Files"
-                desc="Drag & drop or browse"
-                icon={CloudUpload}
-                gradient="from-brand-dark to-brand"
-                to="/dashboard/files"
-              />
-              <QuickAction
-                title="Create Group"
-                desc="Start collaborating"
-                icon={Users}
-                gradient="from-slate-700 to-slate-800"
-                to="/dashboard/groups"
-              />
-              <QuickAction
-                title="Share Files"
-                desc="Create public links"
-                icon={Share2}
-                gradient="from-indigo-500 to-indigo-600"
-                to="/dashboard/shared"
-              />
+          <div className="rounded-[2rem] border border-slate-100 bg-white p-6 shadow-sm flex-1 flex flex-col">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="font-bold text-slate-900 flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-brand" /> Content Analytics
+              </h3>
             </div>
-          </div>
-
-          {/* File Types Breakdown */}
-          {Object.keys(typeBreakdown).length > 0 && (
-            <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
-              <h2 className="text-base font-bold text-ink mb-4 flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-brand" /> Storage Breakdown
-              </h2>
-              <div className="space-y-3">
-                {Object.entries(typeBreakdown)
-                  .sort(([,a], [,b]) => b.size - a.size)
-                  .map(([category, data]) => {
-                    const meta = FILE_TYPE_META[category] || FILE_TYPE_META.other;
+            
+            {chartData.length > 0 ? (
+              <div className="flex flex-col md:flex-row items-center gap-8 flex-1 min-h-[280px]">
+                <div className="w-full md:w-1/2 h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={chartData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={65}
+                        outerRadius={95}
+                        paddingAngle={5}
+                        dataKey="value"
+                        stroke="none"
+                        cornerRadius={6}
+                      >
+                        {chartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} className="drop-shadow-sm hover:opacity-80 transition-opacity outline-none" />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        formatter={(value) => formatBytes(value)}
+                        contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)', padding: '12px' }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="w-full md:w-1/2 space-y-3 overflow-y-auto pr-2 max-h-64 scrollbar-thin">
+                  {chartData.map((data) => {
+                    const meta = FILE_TYPE_META[data.name] || FILE_TYPE_META.other;
                     const Icon = meta.icon;
-                    const pctOfTotal = storageUsed > 0 ? Math.round((data.size / storageUsed) * 100) : 0;
                     return (
-                      <div key={category} className="flex items-center gap-3">
-                        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${meta.bg} ${meta.text}`}>
-                          <Icon className="h-4 w-4" />
+                      <div key={data.name} className="flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm ${meta.bg} ${meta.text}`}>
+                          <Icon className="w-5 h-5" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-xs font-semibold text-ink capitalize">{category}</span>
-                            <span className="text-[10px] font-medium text-muted">{data.count} file{data.count !== 1 ? "s" : ""} · {formatBytes(data.size)}</span>
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="font-semibold text-slate-900 text-sm capitalize truncate">{data.name}</span>
+                            <span className="font-bold text-slate-700 text-sm">{formatBytes(data.value)}</span>
                           </div>
-                          <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                            <div
-                              className={`h-full rounded-full bg-gradient-to-r ${meta.color || "from-slate-400 to-slate-500"} transition-all duration-700`}
-                              style={{ width: `${Math.max(pctOfTotal, 2)}%` }}
-                            />
-                          </div>
+                          <p className="text-xs text-slate-500">{data.count} file{data.count !== 1 ? 's' : ''}</p>
                         </div>
                       </div>
                     );
                   })}
+                </div>
               </div>
-            </div>
-          )}
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center">
+                <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+                  <TrendingUp className="w-8 h-8 text-slate-300" />
+                </div>
+                <p className="text-slate-900 font-bold mb-1">No Data Available</p>
+                <p className="text-slate-500 text-sm">Upload files to see analytics here.</p>
+              </div>
+            )}
+          </div>
         </div>
+      </div>
+
+      {/* ─── Bottom Section: Recent Files & Quick Actions ─── */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        
+        {/* ── Recent Files ── */}
+        <div className="lg:col-span-2 rounded-[2rem] border border-slate-100 bg-white shadow-sm overflow-hidden flex flex-col">
+          <div className="flex items-center justify-between p-6 border-b border-slate-50">
+            <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <Clock className="w-5 h-5 text-slate-400" /> Recent Activity
+            </h2>
+            <Link to="/dashboard/files" className="text-sm font-semibold text-brand hover:text-brand-dark transition-colors flex items-center gap-1">
+              View All <ArrowUpRight className="w-4 h-4" />
+            </Link>
+          </div>
+          
+          <div className="flex-1">
+            {recentFiles.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center p-10 text-center">
+                <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+                  <FileText className="w-10 h-10 text-slate-300" />
+                </div>
+                <h3 className="text-slate-900 font-bold mb-1">No Recent Files</h3>
+                <p className="text-slate-500 text-sm max-w-xs mb-6">Upload some files to see them appear here in your recent activity.</p>
+                <button 
+                  onClick={() => navigate("/dashboard/files")}
+                  className="inline-flex items-center gap-2 rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-brand/20 hover:bg-brand-dark transition"
+                >
+                  <CloudUpload className="h-4 w-4" /> Upload Now
+                </button>
+              </div>
+            ) : (
+              <ul className="divide-y divide-slate-50">
+                {recentFiles.slice(0, 5).map((f) => {
+                  const meta = FILE_TYPE_META[f.file_type] || FILE_TYPE_META[_categorize(f.file_type)] || FILE_TYPE_META.other;
+                  const Icon = meta.icon;
+                  return (
+                    <li key={f.file_id} className="flex items-center justify-between p-4 sm:px-6 hover:bg-slate-50/80 transition-colors group">
+                      <div className="flex items-center gap-4 min-w-0">
+                        <div className={`w-12 h-12 rounded-2xl flex shrink-0 items-center justify-center shadow-sm ${meta.bg} ${meta.text}`}>
+                          <Icon className="w-6 h-6" strokeWidth={1.5}/>
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-slate-900 truncate pr-4">{f.file_name}</p>
+                          <div className="flex items-center gap-2 mt-1 text-xs text-slate-500 font-medium">
+                            <span>{formatBytes(f.size)}</span>
+                            <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+                            <span>{timeAgo(f.uploaded_at)}</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-2 pl-4 shrink-0">
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity md:mr-2">
+                          {f.is_favorite && <Star className="w-5 h-5 text-amber-400" fill="currentColor" />}
+                          {f.share_token && <Share2 className="w-5 h-5 text-brand" />}
+                        </div>
+                        <a 
+                          href={`${API_BASE_URL}/files/${f.file_id}`}
+                          download
+                          className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:text-brand hover:border-brand hover:bg-brand/5 transition-all shadow-sm"
+                          title="Download"
+                        >
+                          <Download className="w-4 h-4" />
+                        </a>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        </div>
+
+        {/* ── Quick Links ── */}
+        <div className="lg:col-span-1 rounded-[2rem] border border-slate-100 bg-white shadow-sm p-6">
+          <h2 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
+            <Zap className="w-5 h-5 text-amber-500" /> Fast Forward
+          </h2>
+          <div className="space-y-4">
+            <QuickAction
+              title="Secure Upload"
+              desc="End-to-end encrypted transfer"
+              icon={CloudUpload}
+              bg="bg-brand/10"
+              color="text-brand"
+              border="border-brand/20"
+              to="/dashboard/files"
+            />
+            <QuickAction
+              title="Team Workspace"
+              desc="Collaborate with your group"
+              icon={Users}
+              bg="bg-indigo-50"
+              color="text-indigo-600"
+              border="border-indigo-100"
+              to="/dashboard/groups"
+            />
+            <QuickAction
+              title="Public Links"
+              desc="Manage shared files"
+              icon={Share2}
+              bg="bg-emerald-50"
+              color="text-emerald-600"
+              border="border-emerald-100"
+              to="/dashboard/shared"
+            />
+            <QuickAction
+              title="Code Snippets"
+              desc="Your saved scripts"
+              icon={Code2}
+              bg="bg-slate-100"
+              color="text-slate-700"
+              border="border-slate-200"
+              to="/dashboard/files"
+            />
+          </div>
+        </div>
+
       </div>
     </div>
   );
@@ -415,46 +501,51 @@ function StatCard({ title, value, hint, icon: Icon, gradient, to }) {
   return (
     <Link
       to={to}
-      className="group relative rounded-2xl border border-slate-100 bg-white p-5 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5 hover:border-slate-200 overflow-hidden"
+      className="group relative rounded-3xl border border-slate-100 bg-white p-6 shadow-sm transition-all hover:shadow-lg hover:-translate-y-1 hover:border-slate-200 overflow-hidden block"
     >
-      <div className={`absolute -right-4 -top-4 w-20 h-20 rounded-full bg-gradient-to-br ${gradient} opacity-[0.07] blur-xl group-hover:opacity-[0.12] transition-opacity`}></div>
-      <div className="flex items-start justify-between gap-3 relative z-10">
+      <div className="flex flex-col h-full relative z-10">
+        <div className="flex justify-between items-start mb-4">
+          <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${gradient} text-white flex items-center justify-center shadow-lg shadow-current/20`}>
+            <Icon className="w-6 h-6" strokeWidth={1.5} />
+          </div>
+          <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity transform group-hover:translate-x-1 group-hover:-translate-y-1">
+            <ArrowUpRight className="w-4 h-4 text-slate-400" />
+          </div>
+        </div>
         <div>
-          <p className="text-sm font-medium text-muted">{title}</p>
-          <p className="mt-2 text-3xl font-extrabold tracking-tight text-ink">{value}</p>
-          <p className="mt-1 text-xs text-muted">{hint}</p>
-        </div>
-        <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${gradient} text-white shadow-lg`}>
-          <Icon className="h-5 w-5" strokeWidth={1.75} />
+          <p className="text-3xl font-black text-slate-900 tracking-tight mb-1">{value}</p>
+          <p className="text-sm font-semibold text-slate-500">{title}</p>
+          <p className="text-xs text-slate-400 mt-2 font-medium">{hint}</p>
         </div>
       </div>
-      <div className="absolute bottom-3 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
-        <ArrowRight className="w-4 h-4 text-slate-300" />
-      </div>
+      <div className={`absolute -right-8 -bottom-8 w-32 h-32 rounded-full bg-gradient-to-tl ${gradient} opacity-[0.03] blur-2xl group-hover:opacity-[0.08] transition-opacity duration-500`}></div>
     </Link>
   );
 }
 
-function QuickAction({ title, desc, icon: Icon, gradient, to }) {
+function QuickAction({ title, desc, icon: Icon, bg, color, border, to }) {
   return (
     <Link
       to={to}
-      className="group flex items-center gap-3.5 rounded-2xl border border-slate-100 bg-white p-3.5 transition-all hover:border-slate-200 hover:shadow-sm"
+      className={`group flex items-center gap-4 rounded-2xl border ${border} bg-white p-4 transition-all hover:shadow-md hover:border-slate-300`}
     >
-      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${gradient} text-white shadow-md`}>
-        <Icon className="h-4 w-4" />
+      <div className={`w-12 h-12 shrink-0 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 ${bg} ${color}`}>
+        <Icon className="w-6 h-6" strokeWidth={1.5} />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-ink">{title}</p>
-        <p className="text-xs text-muted">{desc}</p>
+        <p className="text-sm font-bold text-slate-900">{title}</p>
+        <p className="text-xs text-slate-500 font-medium">{desc}</p>
       </div>
-      <ArrowRight className="h-4 w-4 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-brand" />
+      <div className="w-8 h-8 shrink-0 rounded-full bg-slate-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
+        <ArrowRight className="w-4 h-4 text-slate-400" />
+      </div>
     </Link>
   );
 }
 
-/* Utility to categorize file extensions for type icon mapping */
 function _categorize(ext) {
+  if (!ext) return "other";
+  ext = ext.toLowerCase().replace('.', '');
   const images = new Set(["jpg", "jpeg", "png", "gif", "bmp", "svg", "webp", "ico", "tiff"]);
   const documents = new Set(["pdf", "doc", "docx", "txt", "xls", "xlsx", "ppt", "pptx", "csv", "rtf", "odt"]);
   const videos = new Set(["mp4", "avi", "mkv", "mov", "wmv", "flv", "webm"]);

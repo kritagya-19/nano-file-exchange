@@ -201,6 +201,12 @@ def delete_group(group_id: int, user_id: int = Depends(get_current_user_id), db:
         db.delete(msg)
     db.flush()
 
+    # Clean up invitations to prevent orphaned rows
+    invitations = db.scalars(select(GroupInvitation).where(GroupInvitation.group_id == group_id)).all()
+    for inv in invitations:
+        db.delete(inv)
+    db.flush()
+
     db.delete(group)
     db.commit()
     return {"status": "success", "message": "Group deleted successfully"}
@@ -236,8 +242,29 @@ def invite_by_email(group_id: int, payload: InviteByEmail, user_id: int = Depend
     if existing_invite:
         raise HTTPException(status_code=400, detail="An invitation has already been sent to this email.")
 
-    # 4. Create the invitation
+    # 4. Get inviter name for the email
+    inviter = db.scalar(select(User).where(User.user_id == user_id))
+    inviter_name = inviter.name if inviter else "Someone"
+
+    # 5. Generate invitation token
     invite_token = uuid.uuid4().hex
+
+    # 6. Send the email FIRST — only create DB record if email succeeds
+    #    This prevents the "already sent" deadlock when email delivery fails.
+    email_sent = send_invite_email(
+        to_email=payload.email,
+        group_name=group.group_name,
+        inviter_name=inviter_name,
+        invite_token=invite_token
+    )
+
+    if not email_sent:
+        raise HTTPException(
+            status_code=502,
+            detail="Failed to send invitation email. Please check your email configuration and try again."
+        )
+
+    # 7. Email sent successfully — now persist the invitation
     invitation = GroupInvitation(
         group_id=group_id,
         invited_email=payload.email,
@@ -247,22 +274,6 @@ def invite_by_email(group_id: int, payload: InviteByEmail, user_id: int = Depend
     db.add(invitation)
     db.commit()
     db.refresh(invitation)
-
-    # 5. Get inviter name for the email
-    inviter = db.scalar(select(User).where(User.user_id == user_id))
-    inviter_name = inviter.name if inviter else "Someone"
-
-    # 6. Send the email
-    email_sent = send_invite_email(
-        to_email=payload.email,
-        group_name=group.group_name,
-        inviter_name=inviter_name,
-        invite_token=invite_token
-    )
-    
-    if not email_sent:
-        # Still create the invitation even if email fails — admin can share link manually
-        pass
 
     return invitation
 

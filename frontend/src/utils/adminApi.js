@@ -57,7 +57,9 @@ export async function adminFetch(endpoint, options = {}) {
   }
 
   if (!response.ok) {
-    if (response.status === 401 || response.status === 403) {
+    // 401 = token expired/invalid → clear credentials and redirect to login.
+    // 403 = authenticated but not authorized → let the component handle it, don't logout.
+    if (response.status === 401) {
       clearAdmin();
       if (!window.location.pathname.includes("/admin/login")) {
         window.location.href = "/admin/login";

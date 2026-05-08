@@ -1,7 +1,30 @@
 import { useState, useEffect, useCallback } from "react";
-import { Users, Plus, LayoutGrid, Sparkles, Search, LogIn, Lock } from "lucide-react";
+import { Users, Plus, LayoutGrid, Search, LogIn, Lock, X, MessageSquare, ShieldCheck, Sparkles } from "lucide-react";
 import { apiFetch } from "../../utils/api";
 import { useNavigate, Outlet, useParams } from "react-router-dom";
+
+// ─── PREMIUM MODAL ─────────────────────────────────────────────────────────
+function Modal({ open, onClose, title, children }) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm transition-all duration-300 animate-in fade-in" onClick={onClose}>
+      <div 
+        className="w-full max-w-sm scale-100 transform overflow-hidden rounded-[2rem] border border-white/20 bg-white shadow-2xl transition-transform animate-in zoom-in-95 duration-200 m-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-slate-50 px-6 py-5 bg-slate-50/50">
+          <h3 className="text-lg font-bold text-slate-900 tracking-tight">{title}</h3>
+          <button onClick={onClose} className="rounded-full p-2 text-slate-400 hover:bg-slate-200 hover:text-slate-800 transition-colors">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="p-6">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function Groups() {
   const [myGroups, setMyGroups] = useState([]);
@@ -63,7 +86,7 @@ export function Groups() {
       if (res.message) {
          setJoinIsError(false);
          setJoinMessage(res.message);
-         setTimeout(() => setJoinMessage(""), 5000);
+         setTimeout(() => { setJoinMessage(""); setIsJoining(false); }, 2000);
       }
       setJoinGroupId("");
       fetchGroups();
@@ -81,131 +104,181 @@ export function Groups() {
   };
 
   return (
-    <div className="flex h-full w-full bg-white overflow-hidden">
-      
-      {/* Left Sidebar (Groups List) */}
-      <div className={`flex flex-col w-full sm:w-80 md:w-96 border-r border-slate-100 bg-slate-50/50 flex-shrink-0 ${!isBase ? 'hidden sm:flex' : ''}`}>
+    <div className="h-full w-full animate-in fade-in duration-500">
+      <div className="flex h-full w-full overflow-hidden bg-white">
         
-        {/* Header like WhatsApp */}
-        <div className="p-4 bg-white flex flex-col gap-4 border-b border-slate-100 z-10">
-          <div className="flex items-center justify-between pb-1">
-            <h2 className="text-[22px] font-bold tracking-tight text-ink">
-              Chats
-            </h2>
-            <button
-              onClick={() => { setIsCreating(true); setIsJoining(false); }}
-              className="text-slate-400 hover:text-ink transition-colors"
-              title="Create Group"
-            >
-              <Plus className="h-6 w-6" />
-            </button>
+        {/* Left Sidebar (Groups List) */}
+        <div className={`flex flex-col w-full sm:w-[340px] md:w-[380px] border-r border-slate-100 bg-slate-50/30 flex-shrink-0 ${!isBase ? 'hidden sm:flex' : ''}`}>
+          
+          {/* Header */}
+          <div className="p-6 pb-4 flex flex-col gap-5 border-b border-slate-100/60 bg-white/50 backdrop-blur-md z-10">
+            <div className="flex items-center justify-between">
+              <h1 className="text-2xl font-black tracking-tight text-slate-900 flex items-center gap-2">
+                Team Chat
+              </h1>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setIsJoining(true)}
+                  className="p-2 rounded-xl text-slate-400 hover:text-brand hover:bg-brand/10 transition-colors"
+                  title="Join Group"
+                >
+                  <LogIn className="w-5 h-5" style={{ transform: 'rotate(180deg)' }} />
+                </button>
+                <button
+                  onClick={() => setIsCreating(true)}
+                  className="p-2 rounded-xl bg-brand text-white shadow-md shadow-brand/20 hover:bg-brand-dark hover:-translate-y-0.5 transition-all"
+                  title="Create Group"
+                >
+                  <Plus className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+            
+            <div className="relative">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input 
+                type="text" 
+                placeholder="Search chats..." 
+                className="w-full bg-slate-100/50 border border-slate-200 focus:border-brand focus:ring-4 focus:ring-brand/10 focus:bg-white transition-all rounded-2xl pl-10 pr-4 py-2.5 text-sm font-medium outline-none text-slate-700 placeholder:text-slate-400 shadow-sm" 
+              />
+            </div>
           </div>
-          <div className="relative">
-            <input type="text" placeholder="Search or start new chat" className="w-full bg-slate-50 border border-transparent focus:border-slate-200 focus:bg-white transition-all rounded-lg pl-9 pr-4 py-2 text-[14px] outline-none text-slate-600 placeholder:text-slate-400" />
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          </div>
-          <div className="flex items-center gap-2">
-            <button onClick={() => { setIsCreating(true); setIsJoining(false); }} className="flex-1 border border-slate-200 rounded-full py-1.5 flex items-center justify-center gap-1.5 text-[12px] font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
-              <Plus className="w-3.5 h-3.5" /> New Group
-            </button>
-            <button onClick={() => { setIsJoining(true); setIsCreating(false); }} className="flex-1 border border-slate-200 rounded-full py-1.5 flex items-center justify-center gap-1.5 text-[12px] font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
-              <LogIn className="w-3.5 h-3.5 cursor-pointer" style={{ transform: 'rotate(180deg)' }} /> Join Group
-            </button>
+
+          {/* List of Groups */}
+          <div className="flex-1 overflow-y-auto w-full p-3 space-y-1 custom-scrollbar bg-slate-50/20">
+            {isLoading ? (
+              <div className="p-2 space-y-3">
+                {[1, 2, 3, 4].map(i => (
+                  <div key={i} className="h-16 rounded-2xl bg-slate-200/50 animate-pulse" />
+                ))}
+              </div>
+            ) : myGroups.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full p-8 text-center opacity-80">
+                <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mb-4 shadow-sm">
+                  <MessageSquare className="h-8 w-8 text-slate-300" />
+                </div>
+                <p className="text-sm text-slate-800 font-bold">No conversations</p>
+                <p className="text-xs text-slate-500 mt-1 max-w-[200px]">Create a new group or join an existing one to start chatting.</p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                {myGroups.map(group => {
+                  const isActive = parseInt(groupId) === group.group_id;
+                  return (
+                    <div 
+                      key={group.group_id} 
+                      onClick={() => handleOpenGroup(group.group_id)}
+                      className={`group relative cursor-pointer p-3 rounded-2xl transition-all flex items-center gap-4 border ${
+                        isActive 
+                        ? 'bg-brand shadow-md shadow-brand/20 border-brand' 
+                        : 'bg-white border-transparent hover:border-slate-200 hover:shadow-sm hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className={`flex-shrink-0 w-12 h-12 rounded-[1rem] flex items-center justify-center font-bold transition-all shadow-sm ${
+                        isActive 
+                        ? 'bg-white/20 text-white' 
+                        : 'bg-gradient-to-br from-indigo-50 to-brand/10 text-brand group-hover:from-indigo-100 group-hover:to-brand/20'
+                      }`}>
+                        {group.group_name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="overflow-hidden flex-1">
+                        <h3 className={`font-bold text-[15px] truncate transition-colors leading-tight ${isActive ? 'text-white' : 'text-slate-800'}`}>
+                          {group.group_name}
+                        </h3>
+                        <p className={`text-[12px] font-medium mt-0.5 truncate flex items-center gap-1 ${isActive ? 'text-brand-light opacity-90' : 'text-slate-400'}`}>
+                          Workspace ID: {group.group_id}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Join by ID Dropdown */}
-        {isJoining && (
-          <div className="p-4 bg-slate-50/80 border-b border-slate-100 animate-in fade-in slide-in-from-top-2">
-            <form onSubmit={handleJoinById} className="flex gap-2">
-              <input
-                type="text"
-                value={joinGroupId}
-                onChange={(e) => setJoinGroupId(e.target.value)}
-                placeholder="Enter Group ID..."
-                className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand focus:ring-1 focus:ring-brand placeholder:text-slate-400"
-                autoFocus
-              />
-              <button disabled={!joinGroupId} className="rounded-xl bg-ink px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-50 min-w-max transition-colors">Join</button>
-            </form>
-            {joinMessage && <p className={`text-[10px] font-bold mt-1.5 px-1 ${joinIsError ? 'text-red-500' : 'text-brand'}`}>{joinMessage}</p>}
-          </div>
-        )}
-
-        {/* Create Group Dropdown */}
-        {isCreating && (
-          <div className="p-4 bg-brand/5 border-b border-brand/10">
-            <form onSubmit={handleCreateGroup} className="flex flex-col gap-2">
-              <input
-                type="text"
-                value={newGroupName}
-                onChange={(e) => setNewGroupName(e.target.value)}
-                placeholder="Group Name"
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none placeholder:text-slate-400 focus:border-brand focus:ring-1 focus:ring-brand"
-                autoFocus
-              />
-              <div className="flex gap-2">
-                <button type="submit" className="flex-1 rounded-xl bg-brand py-2 text-xs font-semibold text-white hover:bg-brand/90 transition-all">Create</button>
-                <button type="button" onClick={() => setIsCreating(false)} className="flex-1 rounded-xl bg-slate-200 text-slate-600 py-2 text-xs font-semibold hover:bg-slate-300 transition-colors">Cancel</button>
-              </div>
-            </form>
-          </div>
-        )}
-
-        {/* List of Groups */}
-        <div className="flex-1 overflow-y-auto w-full">
-          {isLoading ? (
-            <div className="p-4 space-y-2">
-              {[1, 2, 3].map(i => (
-                <div key={i} className="h-16 rounded-2xl bg-slate-200/50 animate-pulse" />
-              ))}
-            </div>
-          ) : myGroups.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full p-8 text-center opacity-70">
-              <LayoutGrid className="h-8 w-8 text-slate-400 mb-3" />
-              <p className="text-sm text-slate-500 font-medium">No groups yet.</p>
-              <p className="text-[11px] text-slate-400 mt-1">Create or join one!</p>
-            </div>
-          ) : (
-            <div className="flex flex-col">
-              {myGroups.map(group => (
-                <div 
-                  key={group.group_id} 
-                  onClick={() => handleOpenGroup(group.group_id)}
-                  className={`group relative cursor-pointer p-4 transition-all hover:bg-slate-100 flex items-center gap-3 border-b border-slate-100 ${parseInt(groupId) === group.group_id ? 'bg-brand/5 border-l-4 border-l-brand hover:bg-brand/10' : 'border-l-4 border-l-transparent'}`}
-                >
-                  <div className={`flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center text-white font-bold transition-all ${parseInt(groupId) === group.group_id ? 'bg-gradient-to-br from-brand-dark to-brand shadow-md shadow-brand/20' : 'bg-slate-300 group-hover:bg-slate-400'}`}>
-                    <Users className="w-5 h-5" />
-                  </div>
-                  <div className="overflow-hidden flex-1">
-                    <h3 className={`font-bold text-[15px] truncate transition-colors leading-tight ${parseInt(groupId) === group.group_id ? 'text-brand' : 'text-ink'}`}>{group.group_name}</h3>
-                    <p className="text-[12px] font-medium text-slate-400 mt-0.5 truncate flex items-center gap-1">id: {group.group_id}</p>
+        {/* Right Side (Outlet or Placeholder) */}
+        <div className={`flex-1 relative bg-white border-l border-slate-100 ${isBase ? 'hidden sm:flex flex-col items-center justify-center' : 'flex flex-col'}`}>
+          {isBase ? (
+            <div className="relative w-full h-full flex items-center justify-center overflow-hidden bg-slate-50/50">
+              {/* Decorative Background */}
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-brand/5 blur-[100px] rounded-full pointer-events-none"></div>
+              
+              <div className="text-center animate-in fade-in zoom-in-95 duration-500 w-full flex flex-col items-center justify-center relative z-10 max-w-md px-6">
+                <div className="relative mb-8">
+                  <div className="absolute -inset-4 bg-brand/10 blur-xl rounded-full"></div>
+                  <div className="w-24 h-24 bg-gradient-to-br from-brand to-indigo-600 rounded-[2rem] flex items-center justify-center mx-auto shadow-2xl shadow-brand/30 relative transform rotate-3 hover:rotate-0 transition-transform duration-500">
+                    <ShieldCheck className="w-10 h-10 text-white" />
                   </div>
                 </div>
-              ))}
+                <h2 className="text-2xl font-black text-slate-900 tracking-tight mb-3">Nano Secure Chat</h2>
+                <p className="text-sm text-slate-500 leading-relaxed font-medium">
+                  Select a group from the sidebar to start messaging. All messages and file transfers are securely encrypted.
+                </p>
+                <div className="mt-8 flex items-center justify-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-widest">
+                  <Lock className="w-3.5 h-3.5" /> End-to-end Encrypted
+                </div>
+              </div>
             </div>
+          ) : (
+            <Outlet />
           )}
         </div>
+
       </div>
 
-      {/* Right Side (Outlet or Placeholder) */}
-      <div className={`flex-1 relative bg-white ${isBase ? 'hidden sm:flex flex-col items-center justify-center bg-slate-50/30' : 'flex flex-col'}`} style={isBase ? { backgroundImage: "url('data:image/svg+xml,%3Csvg width=\"20\" height=\"20\" viewBox=\"0 0 20 20\" xmlns=\"http://www.w3.org/2000/svg\"%3E%3Cg fill=\"%23e2e8f0\" fill-opacity=\"0.4\" fill-rule=\"evenodd\"%3E%3Ccircle cx=\"3\" cy=\"3\" r=\"1\"/%3E%3Ccircle cx=\"13\" cy=\"13\" r=\"1\"/%3E%3C/g%3E%3C/svg%3E')" } : {}}>
-        {isBase ? (
-          <div className="text-center animate-in fade-in zoom-in-95 duration-500 w-full flex flex-col items-center justify-center">
-            <div className="w-24 h-24 bg-[#f0f2f5] rounded-full flex items-center justify-center mx-auto mb-6">
-              <Lock className="w-10 h-10 text-brand" />
+      {/* ── CREATE GROUP MODAL ──────────────────────────── */}
+      <Modal open={isCreating} onClose={() => { setIsCreating(false); setNewGroupName(""); }} title="Create New Workspace">
+        <form onSubmit={handleCreateGroup}>
+          <div className="flex justify-center mb-6">
+            <div className="w-16 h-16 bg-brand/10 text-brand rounded-[1.5rem] flex items-center justify-center">
+              <Sparkles className="w-8 h-8" />
             </div>
-            <p className="text-[12.5px] text-slate-500 max-w-sm mx-auto leading-relaxed">
-              Messages and calls are end-to-end encrypted. No one outside of this chat can read or listen to them.
-            </p>
-            <p className="text-[11px] text-brand font-semibold mt-4 tracking-wider uppercase opacity-80">
-              Start the conversation
-            </p>
           </div>
-        ) : (
-          <Outlet />
-        )}
-      </div>
+          <label className="text-sm font-bold text-slate-700">Workspace Name</label>
+          <input
+            type="text"
+            autoFocus
+            value={newGroupName}
+            onChange={(e) => setNewGroupName(e.target.value)}
+            className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-4 focus:ring-brand/10 focus:border-brand transition-all"
+            placeholder="e.g. Design Team, Engineering"
+          />
+          <div className="mt-8 flex justify-end gap-3">
+            <button type="button" onClick={() => setIsCreating(false)} className="rounded-xl px-5 py-2.5 text-sm font-bold text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition">Cancel</button>
+            <button type="submit" disabled={!newGroupName.trim()} className="rounded-xl bg-brand px-6 py-2.5 text-sm font-bold text-white shadow-md shadow-brand/30 transition hover:bg-brand-dark disabled:opacity-50 disabled:shadow-none">Create Group</button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* ── JOIN GROUP MODAL ────────────────────────────── */}
+      <Modal open={isJoining} onClose={() => { setIsJoining(false); setJoinGroupId(""); setJoinMessage(""); }} title="Join a Workspace">
+        <form onSubmit={handleJoinById}>
+          <div className="flex justify-center mb-6">
+            <div className="w-16 h-16 bg-indigo-50 text-indigo-500 rounded-[1.5rem] flex items-center justify-center">
+              <LogIn className="w-8 h-8" style={{ transform: 'rotate(180deg)' }} />
+            </div>
+          </div>
+          <label className="text-sm font-bold text-slate-700">Workspace ID</label>
+          <input
+            type="text"
+            autoFocus
+            value={joinGroupId}
+            onChange={(e) => setJoinGroupId(e.target.value)}
+            className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-4 focus:ring-brand/10 focus:border-brand transition-all"
+            placeholder="Enter the ID provided by the admin"
+          />
+          {joinMessage && (
+            <p className={`text-xs font-bold mt-3 px-1 ${joinIsError ? 'text-red-500' : 'text-emerald-500'}`}>
+              {joinMessage}
+            </p>
+          )}
+          <div className="mt-8 flex justify-end gap-3">
+            <button type="button" onClick={() => setIsJoining(false)} className="rounded-xl px-5 py-2.5 text-sm font-bold text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition">Cancel</button>
+            <button type="submit" disabled={!joinGroupId.trim()} className="rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-bold text-white shadow-md shadow-indigo-600/30 transition hover:bg-indigo-700 disabled:opacity-50 disabled:shadow-none">Join Group</button>
+          </div>
+        </form>
+      </Modal>
 
     </div>
   );

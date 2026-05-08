@@ -1,5 +1,6 @@
 import os
 import uuid
+import shutil
 from datetime import UTC, datetime
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from fastapi.responses import FileResponse as FastAPIFileResponse
@@ -12,6 +13,7 @@ from app.models.file import File as FileModel, StorageDetail
 from app.schemas.file import FileResponse, FileDeleteResponse, ShareResponse, MoveFileRequest
 from app.middleware.auth import get_current_user_id
 from app.config import settings
+from app.utils.file_ops import resolve_abs_file_path as _resolve_abs_file_path, delete_file_from_disk as _delete_file_from_disk
 
 router = APIRouter()
 
@@ -21,39 +23,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 _SAFE_UPLOAD_ID_RE = re.compile(r'^[a-f0-9]{8,64}$')
-
-
-def _resolve_abs_file_path(file_path: Optional[str]) -> Optional[str]:
-    """Safely resolve a stored relative filename to an absolute path.
-    
-    SECURITY: All paths are jailed inside UPLOAD_DIR. Absolute paths or
-    directory traversal sequences (../../) are rejected outright.
-    """
-    if not file_path:
-        return None
-    # Reject any absolute path or path with directory traversal
-    basename = os.path.basename(file_path)
-    if not basename or basename != file_path:
-        logger.warning("Rejected suspicious file_path from DB: %s", file_path)
-        return None
-    upload_dir = os.path.realpath(settings.UPLOAD_DIR)
-    full_path = os.path.realpath(os.path.join(upload_dir, basename))
-    # Ensure the resolved path is still inside UPLOAD_DIR
-    if not full_path.startswith(upload_dir + os.sep) and full_path != upload_dir:
-        logger.warning("Path jail escape attempt: %s", full_path)
-        return None
-    return full_path
-
-
-def _delete_file_from_disk(file_path: Optional[str]) -> None:
-    full_path = _resolve_abs_file_path(file_path)
-    if not full_path:
-        return
-    if os.path.exists(full_path):
-        try:
-            os.remove(full_path)
-        except OSError as e:
-            logger.error("Failed to delete file %s: %s", full_path, e)
 
 
 def _build_file_response(f: FileModel) -> FileResponse:
@@ -192,7 +161,6 @@ async def upload_chunk(
         raise HTTPException(status_code=400, detail="Uploaded file size mismatch")
 
     # Clean up chunk files
-    import shutil
     shutil.rmtree(chunk_dir, ignore_errors=True)
 
     new_file = FileModel(
@@ -280,8 +248,8 @@ def download_shared_file(share_token: str, db: Session = Depends(get_db)):
     if not file_record or not file_record.file_path:
         raise HTTPException(status_code=404, detail="Shared file not found or link expired")
 
-    full_path = os.path.join(settings.UPLOAD_DIR, file_record.file_path)
-    if os.path.exists(full_path):
+    full_path = _resolve_abs_file_path(file_record.file_path)
+    if full_path and os.path.exists(full_path):
         return FastAPIFileResponse(
             full_path,
             filename=file_record.file_name,
@@ -305,15 +273,21 @@ def get_shared_file_info(share_token: str, db: Session = Depends(get_db)):
     }
 
 
-# ── Download file (authenticated) ────────────────────────────────────────────
+# ── Download file (authenticated + ownership check) ─────────────────────────
 @router.get("/{file_id}")
-def download_file(file_id: int, db: Session = Depends(get_db)):
-    file_record = db.scalar(select(FileModel).where(FileModel.file_id == file_id))
+def download_file(
+    file_id: int,
+    user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    file_record = db.scalar(
+        select(FileModel).where(FileModel.file_id == file_id, FileModel.user_id == user_id)
+    )
     if not file_record or not file_record.file_path:
-        raise HTTPException(status_code=404, detail="File not found")
+        raise HTTPException(status_code=404, detail="File not found or access denied")
 
-    full_path = os.path.join(settings.UPLOAD_DIR, file_record.file_path)
-    if os.path.exists(full_path):
+    full_path = _resolve_abs_file_path(file_record.file_path)
+    if full_path and os.path.exists(full_path):
         return FastAPIFileResponse(
             full_path,
             filename=file_record.file_name,
