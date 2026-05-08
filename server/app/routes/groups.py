@@ -231,7 +231,7 @@ def invite_by_email(group_id: int, payload: InviteByEmail, user_id: int = Depend
         if existing_member and existing_member.status == "approved":
             raise HTTPException(status_code=400, detail="This user is already a member of the group.")
 
-    # 3. Check for an existing pending invitation to avoid spam
+    # 3. Check for an existing pending invitation
     existing_invite = db.scalar(
         select(GroupInvitation).where(
             GroupInvitation.group_id == group_id,
@@ -239,18 +239,15 @@ def invite_by_email(group_id: int, payload: InviteByEmail, user_id: int = Depend
             GroupInvitation.status == "pending"
         )
     )
-    if existing_invite:
-        raise HTTPException(status_code=400, detail="An invitation has already been sent to this email.")
 
     # 4. Get inviter name for the email
     inviter = db.scalar(select(User).where(User.user_id == user_id))
     inviter_name = inviter.name if inviter else "Someone"
 
-    # 5. Generate invitation token
-    invite_token = uuid.uuid4().hex
+    # 5. Generate or reuse invitation token
+    invite_token = existing_invite.invite_token if existing_invite else uuid.uuid4().hex
 
-    # 6. Send the email FIRST — only create DB record if email succeeds
-    #    This prevents the "already sent" deadlock when email delivery fails.
+    # 6. Send the email FIRST — only create/update DB record if email succeeds
     email_sent = send_invite_email(
         to_email=payload.email,
         group_name=group.group_name,
@@ -264,7 +261,10 @@ def invite_by_email(group_id: int, payload: InviteByEmail, user_id: int = Depend
             detail="Failed to send invitation email. Please check your email configuration and try again."
         )
 
-    # 7. Email sent successfully — now persist the invitation
+    # 7. Email sent successfully — return existing or persist new
+    if existing_invite:
+        return existing_invite
+
     invitation = GroupInvitation(
         group_id=group_id,
         invited_email=payload.email,

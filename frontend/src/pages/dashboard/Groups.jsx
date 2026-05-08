@@ -40,8 +40,8 @@ export function Groups() {
   const { groupId } = useParams();
   const isBase = !groupId;
 
-  const fetchGroups = useCallback(async () => {
-    setIsLoading(true);
+  const fetchGroups = useCallback(async (showLoading = true) => {
+    if (showLoading) setIsLoading(true);
     try {
       const myRes = await apiFetch("/groups");
       setMyGroups(myRes);
@@ -53,11 +53,11 @@ export function Groups() {
   }, []);
 
   useEffect(() => {
-    fetchGroups();
+    fetchGroups(true);
   }, [fetchGroups]);
 
   useEffect(() => {
-    const interval = setInterval(fetchGroups, 10000);
+    const interval = setInterval(() => fetchGroups(false), 10000);
     return () => clearInterval(interval);
   }, [fetchGroups]);
 
@@ -72,7 +72,7 @@ export function Groups() {
       });
       setNewGroupName("");
       setIsCreating(false);
-      fetchGroups();
+      fetchGroups(false);
     } catch (err) {
       console.error("Failed to create group", err);
     }
@@ -89,7 +89,7 @@ export function Groups() {
          setTimeout(() => { setJoinMessage(""); setIsJoining(false); }, 2000);
       }
       setJoinGroupId("");
-      fetchGroups();
+      fetchGroups(false);
     } catch (err) {
       const errorMsg = err.message || "Failed to join group. Please check the Group ID and try again.";
       setJoinIsError(true);

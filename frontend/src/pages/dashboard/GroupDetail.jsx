@@ -57,6 +57,7 @@ export function GroupDetail() {
       // Only start polling AFTER access is confirmed
       interval = setInterval(() => {
         fetchMessages(false);
+        fetchMembers();
       }, 5000);
     }).finally(() => setLoading(false));
     
@@ -447,7 +448,7 @@ export function GroupDetail() {
                         <div className={`absolute bottom-1 right-2 flex items-center gap-1 opacity-80 ${isMe ? 'text-white' : 'text-slate-400'}`}>
                           {isStarred && <Star className="w-2.5 h-2.5 text-amber-400" fill="currentColor" />}
                           <span className="text-[10px] whitespace-nowrap">
-                            {new Date(msg.sent_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            {new Date(msg.sent_at.endsWith('Z') ? msg.sent_at : msg.sent_at + 'Z').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </span>
                         </div>
                       )}
