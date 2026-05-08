@@ -12,3 +12,4 @@ python-dotenv==1.0.1
 PyJWT==2.10.1
 orjson==3.10.18
 gunicorn==21.2.0
+requests==2.31.0
