@@ -24,7 +24,7 @@ const DashboardHome = lazy(() => import("./pages/dashboard/DashboardHome").then(
 const MyFiles = lazy(() => import("./pages/dashboard/MyFiles").then(m => ({ default: m.MyFiles })));
 const Groups = lazy(() => import("./pages/dashboard/Groups").then(m => ({ default: m.Groups })));
 const GroupDetail = lazy(() => import("./pages/dashboard/GroupDetail").then(m => ({ default: m.GroupDetail })));
-const Shared = lazy(() => import("./pages/dashboard/Shared").then(m => ({ default: m.Shared })));
+// Removed Shared page
 const StarredPage = lazy(() => import("./pages/dashboard/StarredPage").then(m => ({ default: m.StarredPage })));
 const TrashPage = lazy(() => import("./pages/dashboard/TrashPage").then(m => ({ default: m.TrashPage })));
 const HelpPage = lazy(() => import("./pages/dashboard/HelpPage").then(m => ({ default: m.HelpPage })));
@@ -91,7 +91,7 @@ export default function App() {
           <Route path="groups" element={<Groups />}>
             <Route path=":groupId" element={<GroupDetail />} />
           </Route>
-          <Route path="shared" element={<Shared />} />
+{/* Removed Shared route */}
           <Route path="starred" element={<StarredPage />} />
           <Route path="trash" element={<TrashPage />} />
           <Route path="help" element={<HelpPage />} />

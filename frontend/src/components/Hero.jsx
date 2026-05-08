@@ -12,7 +12,7 @@ export function Hero() {
 
       <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
-          <div>
+          <div className="flex flex-col items-center text-center lg:items-start lg:text-left">
             <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-brand shadow-sm backdrop-blur">
               <span className="h-1.5 w-1.5 rounded-full bg-brand" />
               File sharing, reimagined
@@ -22,7 +22,7 @@ export function Hero() {
               <span className="relative inline-block text-brand">
                 no stress
                 <svg
-                  className="pointer-events-none absolute -bottom-1 left-0 right-0 mx-auto h-2.5 w-28 text-brand/80"
+                  className="pointer-events-none absolute -bottom-1 left-0 right-0 mx-auto h-2.5 w-28 text-brand/80 lg:mx-0 lg:left-0 lg:right-auto"
                   viewBox="0 0 112 10"
                   fill="none"
                   aria-hidden
@@ -36,11 +36,11 @@ export function Hero() {
                 </svg>
               </span>
             </h1>
-            <p className="mt-5 max-w-xl text-lg text-muted">
+            <p className="mt-5 max-w-xl text-lg text-muted mx-auto lg:mx-0">
               NanoFile helps students, remote teams, and small businesses send large files, chat in groups, and stay
               organized — with pause-and-resume uploads and bank-grade privacy.
             </p>
-            <div className="mt-8 flex flex-wrap items-center gap-4">
+            <div className="mt-8 flex flex-wrap justify-center items-center gap-4 lg:justify-start">
               <Link
                 to="/register"
                 className="inline-flex items-center gap-2 rounded-full bg-brand px-7 py-3.5 text-base font-semibold text-white shadow-md transition hover:bg-brand-dark"
@@ -55,7 +55,7 @@ export function Hero() {
                 See how it works
               </Link>
             </div>
-            <ul className="mt-10 flex flex-wrap gap-x-6 gap-y-3 text-sm text-muted">
+            <ul className="mt-10 flex flex-wrap justify-center gap-x-6 gap-y-3 text-sm text-muted lg:justify-start">
               {["Up to 10GB per file", "No credit card to start", "Works on any device"].map((t) => (
                 <li key={t} className="flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4 shrink-0 text-brand" />

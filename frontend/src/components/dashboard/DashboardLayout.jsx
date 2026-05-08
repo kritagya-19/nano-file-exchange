@@ -27,7 +27,7 @@ const mainNav = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, end: true },
   { to: "/dashboard/files", label: "My Files", icon: FolderOpen, end: false },
   { to: "/dashboard/groups", label: "Groups", icon: Users, end: false },
-  { to: "/dashboard/shared", label: "Shared", icon: Share2, end: false },
+// Removed Shared
   { to: "/dashboard/starred", label: "Starred", icon: Star, end: false },
   { to: "/dashboard/trash", label: "Trash", icon: Trash2, end: false },
 ];

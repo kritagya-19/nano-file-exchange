@@ -64,23 +64,31 @@ export function DashboardHome() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const displayName = user?.name?.trim() || nameFromEmail(user?.email || "");
-  const [stats, setStats] = useState(null);
+  const [stats, setStats] = useState(() => {
+    try {
+      const cached = sessionStorage.getItem('dashboard_stats');
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchStats = useCallback(async (showLoader = true) => {
     if (!user?.token) return;
-    if (showLoader) setLoading(true);
+    if (showLoader && !stats) setLoading(true);
     try {
       const data = await apiFetch("/dashboard/stats");
       setStats(data);
+      sessionStorage.setItem('dashboard_stats', JSON.stringify(data));
     } catch (err) {
       console.error("Failed to load dashboard stats", err);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user?.token]);
+  }, [user?.token, stats]);
 
   useEffect(() => {
     fetchStats();
@@ -181,7 +189,7 @@ export function DashboardHome() {
       </div>
 
       {/* ─── Stats Grid ─── */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard
           title="Total Files"
           value={totalFiles}
@@ -197,14 +205,6 @@ export function DashboardHome() {
           icon={Users}
           gradient="from-emerald-500 to-teal-400"
           to="/dashboard/groups"
-        />
-        <StatCard
-          title="Shared Links"
-          value={sharedFiles}
-          hint="Public access"
-          icon={Share2}
-          gradient="from-amber-500 to-orange-400"
-          to="/dashboard/shared"
         />
         <StatCard
           title="Starred"
@@ -468,15 +468,6 @@ export function DashboardHome() {
               color="text-indigo-600"
               border="border-indigo-100"
               to="/dashboard/groups"
-            />
-            <QuickAction
-              title="Public Links"
-              desc="Manage shared files"
-              icon={Share2}
-              bg="bg-emerald-50"
-              color="text-emerald-600"
-              border="border-emerald-100"
-              to="/dashboard/shared"
             />
             <QuickAction
               title="Code Snippets"

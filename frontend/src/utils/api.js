@@ -18,11 +18,58 @@ const getAuthHeaders = () => {
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
+// --- GLOBAL API CACHE ARCHITECTURE ---
+const globalCache = new Map();
+
+// Helper to invalidate cache across memory and sessionStorage
+const invalidateCache = () => {
+  globalCache.clear();
+  try {
+    const keys = Object.keys(sessionStorage);
+    for (const key of keys) {
+      if (key.startsWith("api_cache_")) {
+        sessionStorage.removeItem(key);
+      }
+    }
+  } catch {}
+};
+
 export const apiFetch = async (endpoint, options = {}) => {
   const headers = {
     ...getAuthHeaders(),
     ...(options.headers || {}),
   };
+
+  const method = (options.method || "GET").toUpperCase();
+  const isGet = method === "GET";
+  const cacheKey = `api_cache_${endpoint}`;
+
+  // 1. Return cached GET requests immediately (Stale-While-Revalidate pattern basics)
+  if (isGet && !options.bypassCache) {
+    // Check Memory Cache
+    if (globalCache.has(cacheKey)) {
+      const cached = globalCache.get(cacheKey);
+      if (Date.now() - cached.timestamp < 5 * 60 * 1000) { // 5 min TTL
+        return JSON.parse(JSON.stringify(cached.data));
+      }
+    }
+    // Check Session Storage (persists across page reloads in same tab)
+    try {
+      const stored = sessionStorage.getItem(cacheKey);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Date.now() - parsed.timestamp < 5 * 60 * 1000) {
+          globalCache.set(cacheKey, parsed);
+          return JSON.parse(JSON.stringify(parsed.data));
+        }
+      }
+    } catch {}
+  }
+
+  // 2. Automatically invalidate cache on any mutation (POST/PUT/DELETE/PATCH)
+  if (!isGet) {
+    invalidateCache();
+  }
 
   if (options.body && typeof options.body === "object" && !(options.body instanceof FormData)) {
     options.body = JSON.stringify(options.body);
@@ -70,7 +117,18 @@ export const apiFetch = async (endpoint, options = {}) => {
 
   // Safe JSON parsing — handles 204 No Content and empty bodies without crashing
   const text = await response.text();
-  return text ? JSON.parse(text) : {};
+  const data = text ? JSON.parse(text) : {};
+
+  // 3. Save successful GET requests to cache
+  if (isGet) {
+    const cacheEntry = { data, timestamp: Date.now() };
+    globalCache.set(cacheKey, cacheEntry);
+    try {
+      sessionStorage.setItem(cacheKey, JSON.stringify(cacheEntry));
+    } catch {}
+  }
+
+  return data;
 };
 
 /**
