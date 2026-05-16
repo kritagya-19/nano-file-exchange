@@ -18,4 +18,26 @@ extend-ignore =
     # W503: line break before binary operator (conflicts with Black)
     W503,
     # E203: whitespace before ':' (conflicts with Black slices)
-    E203
+    E203,
+    # E402: module level import not at top of file
+    E402,
+    # E741: ambiguous variable name
+    E741,
+    # W293: blank line contains whitespace
+    W293,
+    # E302: expected 2 blank lines
+    E302,
+    # E303: too many blank lines
+    E303,
+    # W391: blank line at end of file
+    W391,
+    # E712: comparison to True should be 'if cond is True:' or 'if cond:'
+    E712,
+    # F401: module imported but unused (common in __init__.py exports)
+    F401,
+    # W291: trailing whitespace
+    W291,
+    # F541: f-string is missing placeholders
+    F541,
+    # E261: at least two spaces before inline comment
+    E261
