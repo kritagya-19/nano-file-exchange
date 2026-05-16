@@ -45,6 +45,15 @@ jobs:
       - name: Run tests
         run: pytest --tb=short
 
+      - name: Validate Docker image builds (prod stage)
+        working-directory: ${{ github.workspace }}
+        run: |
+          docker build \
+            --file server/Dockerfile \
+            --target prod \
+            --tag nano-api:ci-check \
+            ./server
+
   # ──────────────────────────────────────────────────────────────────
   # Frontend: React / Vite
   # ──────────────────────────────────────────────────────────────────

@@ -1,0 +1,33 @@
+# docker-compose.ci.yml — CI/CD pipeline stack
+#
+# Used in GitHub Actions to spin up the backend + a test DB,
+# run the full pytest suite, then tear everything down.
+#
+# Usage (in CI):
+#   docker compose -f docker-compose.ci.yml up -d --build
+#   docker compose -f docker-compose.ci.yml exec api pytest --tb=short
+#   docker compose -f docker-compose.ci.yml down -v
+
+version: "3.9"
+
+services:
+  api:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+      target: dev
+    container_name: nano_api_ci
+    env_file:
+      - ./server/.env.docker.ci
+    environment:
+      # CI uses SQLite — no DB container needed
+      DB_URL: "sqlite:///./test_integration.db"
+      SECRET_KEY: "ci-test-secret-key-not-for-production"
+      FRONTEND_URL: "http://localhost:5173"
+    volumes:
+      - ./server:/app
+      - /app/venv
+    command: ["python", "-c", "print('Container ready for test runner')"]
+    # No port exposure needed — tests run inside the container
+
+volumes: {}

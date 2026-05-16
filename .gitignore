@@ -1,5 +1,10 @@
 # Environment files
 server/.env
+frontend/.env.production
+
+# Docker env templates are safe to commit (no real secrets)
+# server/.env.docker.dev  ← intentionally NOT ignored
+# server/.env.docker.ci   ← intentionally NOT ignored
 
 # Python virtual environment
 server/venv/

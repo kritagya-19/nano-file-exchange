@@ -1,0 +1,51 @@
+# .dockerignore — Prevents unnecessary files from entering the Docker build context.
+# Keeping the build context small = faster builds and smaller images.
+
+# Python runtime artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual environments — NEVER copy into image (image has its own venv)
+venv/
+.venv/
+env/
+
+# Local environment files (secrets must not leak into the image)
+.env
+.env.*
+!.env.docker.ci
+
+# Tests — not needed in the production image
+tests/
+pytest.ini
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Upload data — mounted as a Docker volume in production
+uploads/
+
+# IDE and OS noise
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Git history
+.git/
+.gitignore
+
+# Database files
+*.db
+*.sqlite
+
+# Docs
+*.md
