@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { Users, Plus, LayoutGrid, Search, LogIn, Lock, X, MessageSquare, ShieldCheck, Sparkles } from "lucide-react";
+import { useNavigate, useParams } from "react-router-dom";
 import { apiFetch } from "../../utils/api";
-import { useNavigate, Outlet, useParams } from "react-router-dom";
 
 // ─── PREMIUM MODAL ─────────────────────────────────────────────────────────
 function Modal({ open, onClose, title, children }) {
@@ -202,11 +201,11 @@ export function Groups() {
           {isBase ? (
             <div className="relative w-full h-full flex items-center justify-center overflow-hidden bg-slate-50/50">
               {/* Decorative Background */}
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-brand/5 blur-[100px] rounded-full pointer-events-none"></div>
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-brand/5 blur-[100px] rounded-full pointer-events-none" />
               
               <div className="text-center animate-in fade-in zoom-in-95 duration-500 w-full flex flex-col items-center justify-center relative z-10 max-w-md px-6">
                 <div className="relative mb-8">
-                  <div className="absolute -inset-4 bg-brand/10 blur-xl rounded-full"></div>
+                  <div className="absolute -inset-4 bg-brand/10 blur-xl rounded-full" />
                   <div className="w-24 h-24 bg-gradient-to-br from-brand to-indigo-600 rounded-[2rem] flex items-center justify-center mx-auto shadow-2xl shadow-brand/30 relative transform rotate-3 hover:rotate-0 transition-transform duration-500">
                     <ShieldCheck className="w-10 h-10 text-white" />
                   </div>

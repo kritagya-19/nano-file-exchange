@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { useNavigate, Navigate, Link } from "react-router-dom";
-import { Shield, Eye, EyeOff, Lock, Hash, ArrowLeft } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { adminFetch, setAdminData, getAdminToken } from "../../utils/adminApi";
 
 export function AdminLogin() {

@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { Download, FileText, Cloud } from "lucide-react";
 import { API_BASE_URL } from "../utils/api";
 
 function formatSize(bytes) {
@@ -8,7 +7,7 @@ function formatSize(bytes) {
   const k = 1024;
   const sizes = ["B", "KB", "MB", "GB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))  } ${  sizes[i]}`;
 }
 
 export function ShareDownload() {

@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
-import { apiFetch } from "../utils/api";
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { Users, CheckCircle2, XCircle, Loader2, LogIn, UserPlus } from "lucide-react";
+import { apiFetch } from "../utils/api";
 
 export function AcceptInvite() {
   const { token } = useParams();

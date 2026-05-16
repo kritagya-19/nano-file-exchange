@@ -1,5 +1,3 @@
-import { Link } from "react-router-dom";
-import { ArrowRight, CheckCircle2, Shield } from "lucide-react";
 
 export function Hero() {
   return (

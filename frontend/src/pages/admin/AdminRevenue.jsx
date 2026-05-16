@@ -1,6 +1,4 @@
 import { useState, useEffect } from "react";
-import { DollarSign, TrendingUp } from "lucide-react";
-import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { adminFetch } from "../../utils/adminApi";
 
 function formatCurrency(amount) {

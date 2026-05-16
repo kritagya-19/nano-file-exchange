@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Send, Paperclip, Star, Smile, Users, Info, MoreVertical, File as FileIcon, Download, X, Copy, Trash2, ShieldCheck, Ban, Mail } from "lucide-react";
-import { apiFetch, uploadFileWithProgress } from "../../utils/api";
 import { useAuth } from "../../context/AuthContext";
+import { apiFetch, uploadFileWithProgress } from "../../utils/api";
 
 export function GroupDetail() {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
@@ -290,7 +289,7 @@ export function GroupDetail() {
   if (accessDenied) {
     return (
       <div className="flex flex-col items-center justify-center h-[calc(100vh-8rem)] bg-white rounded-3xl border border-slate-200/80 shadow-lg p-8 text-center relative overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-red-50/50 via-white to-white pointer-events-none"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-red-50/50 via-white to-white pointer-events-none" />
         <div className="w-24 h-24 bg-red-50 text-red-500 rounded-[2rem] flex items-center justify-center shadow-inner mb-6 relative z-10">
           <Ban className="w-12 h-12" />
         </div>
@@ -448,7 +447,7 @@ export function GroupDetail() {
                         <div className={`absolute bottom-1 right-2 flex items-center gap-1 opacity-80 ${isMe ? 'text-white' : 'text-slate-400'}`}>
                           {isStarred && <Star className="w-2.5 h-2.5 text-amber-400" fill="currentColor" />}
                           <span className="text-[10px] whitespace-nowrap">
-                            {new Date(msg.sent_at.endsWith('Z') ? msg.sent_at : msg.sent_at + 'Z').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            {new Date(msg.sent_at.endsWith('Z') ? msg.sent_at : `${msg.sent_at  }Z`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </span>
                         </div>
                       )}
@@ -543,7 +542,7 @@ export function GroupDetail() {
               onChange={(e) => {
                 setMessageText(e.target.value);
                 e.target.style.height = 'auto';
-                e.target.style.height = (e.target.scrollHeight < 120 ? e.target.scrollHeight : 120) + 'px';
+                e.target.style.height = `${e.target.scrollHeight < 120 ? e.target.scrollHeight : 120  }px`;
               }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {

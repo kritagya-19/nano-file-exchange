@@ -1,6 +1,5 @@
+import { Users, FileText, HardDrive, DollarSign } from "lucide-react";
 import { useState, useEffect } from "react";
-import { Users, FileText, HardDrive, DollarSign, TrendingUp, Users2, ArrowUpRight, ArrowDownRight } from "lucide-react";
-import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { adminFetch } from "../../utils/adminApi";
 
 function formatBytes(bytes) {
@@ -15,7 +14,6 @@ function formatCurrency(amount) {
 }
 
 const PLAN_COLORS = { free: "#64748b", pro: "#3b82f6", max: "#8b5cf6" };
-const CHART_COLORS = ["#3b82f6", "#8b5cf6", "#10b981", "#f59e0b", "#ef4444"];
 
 function StatCard({ icon: Icon, label, value, subtext, color = "brand", trend }) {
   const iconBgMap = {

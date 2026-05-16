@@ -1,5 +1,3 @@
-import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
 import {
   UserRound,
   Mail,
@@ -8,12 +6,10 @@ import {
   Users,
   Share2,
   HardDrive,
-  Edit3,
-  Check,
-  X,
   Shield,
-  Sparkles,
 } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { apiFetch } from "../../utils/api";
 import { nameFromEmail } from "../../utils/displayName";
@@ -139,8 +135,8 @@ export function ProfilePage() {
       <div className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm">
         {/* Banner */}
         <div className="h-32 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 relative overflow-hidden">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(255,255,255,0.15),transparent_60%)]"></div>
-          <div className="absolute -bottom-8 -right-8 w-40 h-40 rounded-full bg-white/10 blur-2xl"></div>
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(255,255,255,0.15),transparent_60%)]" />
+          <div className="absolute -bottom-8 -right-8 w-40 h-40 rounded-full bg-white/10 blur-2xl" />
         </div>
 
         <div className="relative px-6 pb-8 pt-0 sm:px-8">

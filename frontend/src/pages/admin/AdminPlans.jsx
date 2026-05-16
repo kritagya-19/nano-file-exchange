@@ -1,5 +1,5 @@
+import { Zap, Crown, Star } from "lucide-react";
 import { useState, useEffect } from "react";
-import { Save, Zap, Crown, Star } from "lucide-react";
 import { adminFetch } from "../../utils/adminApi";
 
 const planIcons = { free: Star, pro: Zap, max: Crown };

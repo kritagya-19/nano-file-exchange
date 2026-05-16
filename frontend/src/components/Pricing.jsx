@@ -1,7 +1,5 @@
+import { Zap, Crown, Sparkles } from "lucide-react";
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
-import { Check, Zap, Crown, Sparkles, ArrowRight } from "lucide-react";
-import { BrushUnderline } from "./BrushUnderline";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
 

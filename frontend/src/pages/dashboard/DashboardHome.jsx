@@ -1,34 +1,21 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { Link, useNavigate } from "react-router-dom";
 import {
-  ArrowRight,
-  ArrowUpRight,
   CloudUpload,
-  Crown,
   FileText,
   FolderOpen,
-  HardDrive,
   Image as ImageIcon,
   Music,
   Video,
   Archive,
   Code2,
   File as FileIcon,
-  Share2,
   Star,
-  Users,
-  Zap,
-  RefreshCw,
-  Sparkles,
-  Clock,
-  TrendingUp,
-  Download,
-  Activity
+  Users
 } from "lucide-react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { nameFromEmail } from "../../utils/displayName";
 import { apiFetch, API_BASE_URL } from "../../utils/api";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
+import { nameFromEmail } from "../../utils/displayName";
 
 const FILE_TYPE_META = {
   images:    { icon: ImageIcon, color: "from-indigo-500 to-indigo-400", hex: "#6366f1", bg: "bg-indigo-50",  text: "text-indigo-600" },
@@ -123,7 +110,7 @@ export function DashboardHome() {
       <div className="flex items-center justify-center h-[70vh]">
         <div className="flex flex-col items-center gap-6">
           <div className="relative flex items-center justify-center">
-            <div className="absolute w-24 h-24 rounded-full border-t-2 border-brand animate-spin"></div>
+            <div className="absolute w-24 h-24 rounded-full border-t-2 border-brand animate-spin" />
             <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand to-brand-light flex items-center justify-center shadow-xl shadow-brand/20">
               <Sparkles className="w-8 h-8 text-white animate-pulse" />
             </div>
@@ -148,8 +135,8 @@ export function DashboardHome() {
     <div className="space-y-6 pb-12 w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* ─── Hero Banner ─── */}
       <div className="relative overflow-hidden rounded-[2rem] bg-white border border-slate-100 shadow-sm">
-        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 rounded-full bg-brand/5 blur-3xl pointer-events-none"></div>
-        <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-80 h-80 rounded-full bg-indigo-500/5 blur-3xl pointer-events-none"></div>
+        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 rounded-full bg-brand/5 blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-80 h-80 rounded-full bg-indigo-500/5 blur-3xl pointer-events-none" />
         
         <div className="relative p-8 sm:p-10 flex flex-col md:flex-row md:items-center justify-between gap-8 z-10">
           <div>
@@ -278,7 +265,7 @@ export function DashboardHome() {
           {/* Current Plan Mini-card */}
           {stats?.current_plan && (
             <div className="rounded-[2rem] border border-slate-100 bg-slate-900 p-6 shadow-xl shadow-slate-900/10 text-white relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-br from-brand/20 to-transparent pointer-events-none"></div>
+              <div className="absolute inset-0 bg-gradient-to-br from-brand/20 to-transparent pointer-events-none" />
               <div className="relative z-10 flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="p-3 rounded-xl bg-white/10 backdrop-blur-md border border-white/10 shadow-inner">
@@ -417,7 +404,7 @@ export function DashboardHome() {
                           <p className="text-sm font-bold text-slate-900 truncate pr-4">{f.file_name}</p>
                           <div className="flex items-center gap-2 mt-1 text-xs text-slate-500 font-medium">
                             <span>{formatBytes(f.size)}</span>
-                            <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+                            <span className="w-1 h-1 rounded-full bg-slate-300" />
                             <span>{timeAgo(f.uploaded_at)}</span>
                           </div>
                         </div>
@@ -509,7 +496,7 @@ function StatCard({ title, value, hint, icon: Icon, gradient, to }) {
           <p className="text-xs text-slate-400 mt-2 font-medium">{hint}</p>
         </div>
       </div>
-      <div className={`absolute -right-8 -bottom-8 w-32 h-32 rounded-full bg-gradient-to-tl ${gradient} opacity-[0.03] blur-2xl group-hover:opacity-[0.08] transition-opacity duration-500`}></div>
+      <div className={`absolute -right-8 -bottom-8 w-32 h-32 rounded-full bg-gradient-to-tl ${gradient} opacity-[0.03] blur-2xl group-hover:opacity-[0.08] transition-opacity duration-500`} />
     </Link>
   );
 }

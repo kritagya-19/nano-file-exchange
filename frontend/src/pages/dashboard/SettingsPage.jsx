@@ -1,25 +1,10 @@
+import {
+  Shield,
+  User as UserIcon,
+  Zap,
+} from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Lock,
-  Eye,
-  EyeOff,
-  Check,
-  X,
-  AlertTriangle,
-  LogOut,
-  Trash2,
-  Shield,
-  Settings as SettingsIcon,
-  KeyRound,
-  UserX,
-  User as UserIcon,
-  Mail,
-  Loader2,
-  Zap,
-  CreditCard,
-  ChevronRight,
-} from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { apiFetch } from "../../utils/api";
 
@@ -474,7 +459,7 @@ export function SettingsPage() {
         <div className="p-6">
           <div className="flex items-center justify-between rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
             <div className="flex items-center gap-3">
-              <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></div>
+              <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
               <div>
                 <p className="text-sm font-semibold text-ink">Current Session</p>
                 <p className="text-xs text-muted">This browser · Active now</p>

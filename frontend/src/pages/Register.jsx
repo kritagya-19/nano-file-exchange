@@ -1,16 +1,13 @@
 import { useState } from "react";
-import { Link, Navigate, useNavigate, useLocation } from "react-router-dom";
-import { Eye, EyeOff, Lock, Mail, UserRound } from "lucide-react";
-import { AuthLayout } from "../components/AuthLayout";
-import { PasswordRuleList } from "../components/PasswordRuleList";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { apiFetch } from "../utils/api";
 import {
   validateConfirmPassword,
   validateEmail,
   validateName,
   validatePassword,
 } from "../utils/validation";
-import { apiFetch } from "../utils/api";
 
 function FieldError({ message, id }) {
   if (!message) return null;

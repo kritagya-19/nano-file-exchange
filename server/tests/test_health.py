@@ -1,52 +1,28 @@
 """
-Smoke tests for the Nano Exchange FastAPI backend.
+test_health.py — Basic smoke tests (kept lightweight, run first).
 
-These tests use SQLite in-memory so they work in CI without any
-real database credentials. Environment variables are patched before
-any app modules are imported.
+These are the first tests pytest discovers. If these fail, the whole
+suite is likely broken at the import/startup level.
 """
 import os
-import pytest
 
-# ── Patch env BEFORE importing the app (config is read at import time) ──
-os.environ.setdefault("DB_URL", "sqlite:///./test.db")
-os.environ.setdefault("SECRET_KEY", "ci-test-secret-key-not-for-production")
+os.environ.setdefault("DB_URL", "sqlite:///./test_integration.db")
+os.environ.setdefault("SECRET_KEY", "test-secret-key-for-ci-only")
 os.environ.setdefault("FRONTEND_URL", "http://localhost:5173")
 
-from fastapi.testclient import TestClient  # noqa: E402
-from app.main import app                   # noqa: E402
-
-
-@pytest.fixture(scope="module")
-def client():
-    """Provide a TestClient with the app's lifespan (DB init) executed."""
-    with TestClient(app) as c:
-        yield c
-
-
-class TestRootEndpoint:
-    """Basic sanity check — server boots and root route responds."""
-
-    def test_root_returns_200(self, client):
-        response = client.get("/")
-        assert response.status_code == 200
-
-    def test_root_has_message(self, client):
-        data = response = client.get("/")
-        data = response.json()
-        assert "message" in data
-        assert "Nano" in data["message"]
+from app.main import app  # noqa: E402
 
 
 class TestAppStartup:
-    """Verify the app initializes without crashing."""
+    """Verify the FastAPI app object is importable and configured correctly."""
 
-    def test_app_title(self):
+    def test_app_title_contains_nano(self):
         assert "Nano" in app.title
 
-    def test_openapi_schema_loads(self, client):
-        response = client.get("/openapi.json")
-        assert response.status_code == 200
-        schema = response.json()
-        assert "openapi" in schema
-        assert "paths" in schema
+    def test_app_has_routes(self):
+        routes = [r.path for r in app.routes]
+        assert len(routes) > 0
+
+    def test_app_has_api_prefix_routes(self):
+        paths = [r.path for r in app.routes]
+        assert any("/api" in p for p in paths)

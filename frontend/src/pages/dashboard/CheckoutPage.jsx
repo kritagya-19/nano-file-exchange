@@ -1,17 +1,13 @@
-import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
 import {
-  CreditCard,
-  Smartphone,
   Lock,
   Shield,
-  ArrowLeft,
   CheckCircle2,
   Zap,
   Crown,
   Sparkles,
-  Loader2,
 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { apiFetch } from "../../utils/api";
 
@@ -86,7 +82,7 @@ export function CheckoutPage() {
   // Auto-format expiry
   function formatExpiry(val) {
     const digits = val.replace(/\D/g, "").slice(0, 4);
-    if (digits.length >= 3) return digits.slice(0, 2) + "/" + digits.slice(2);
+    if (digits.length >= 3) return `${digits.slice(0, 2)  }/${  digits.slice(2)}`;
     return digits;
   }
 

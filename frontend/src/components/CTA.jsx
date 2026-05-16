@@ -1,5 +1,3 @@
-import { Link } from "react-router-dom";
-import { ArrowRight, Check, Shield } from "lucide-react";
 
 export function CTA() {
   return (

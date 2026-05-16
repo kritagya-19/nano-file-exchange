@@ -1,11 +1,8 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import {
   Check,
   Zap,
   Crown,
   Sparkles,
-  ArrowRight,
   Shield,
   HardDrive,
   Users,
@@ -13,8 +10,9 @@ import {
   Clock,
   BarChart3,
   Code2,
-  Loader2,
 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { apiFetch } from "../../utils/api";
 
@@ -109,7 +107,7 @@ export function PricingPage() {
   // Build comparison table from fetched data
   const featureComparison = plans
     ? [
-        { feature: "Storage", free: `${plans.free?.storage_limit_gb || 20} GB`, pro: `${plans.pro?.storage_limit_gb || 300} GB`, max: `${plans.max?.storage_limit_gb >= 1024 ? (plans.max.storage_limit_gb / 1024).toFixed(0) + " TB" : plans.max?.storage_limit_gb + " GB"}` },
+        { feature: "Storage", free: `${plans.free?.storage_limit_gb || 20} GB`, pro: `${plans.pro?.storage_limit_gb || 300} GB`, max: `${plans.max?.storage_limit_gb >= 1024 ? `${(plans.max.storage_limit_gb / 1024).toFixed(0)  } TB` : `${plans.max?.storage_limit_gb  } GB`}` },
         { feature: "Monthly Price", free: "Free", pro: `₹${plans.pro?.monthly_price || 499}`, max: `₹${plans.max?.monthly_price || 1999}` },
         { feature: "Annual Price", free: "Free", pro: `₹${plans.pro?.annual_price || 399}/mo`, max: `₹${plans.max?.annual_price || 1499}/mo` },
         { feature: "Group chats", free: "5", pro: "Unlimited", max: "Unlimited" },

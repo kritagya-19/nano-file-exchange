@@ -1,31 +1,13 @@
-import { useState, useEffect, useRef, useCallback } from "react";
 import {
-  CloudUpload,
-  FileStack,
   FileText,
   Image as ImageIcon,
-  Search,
-  Trash2,
-  Download,
-  Star,
-  Share2,
-  FolderPlus,
-  FolderOpen,
-  X,
-  Copy,
-  Check,
-  UploadCloud,
   Film,
   Music,
   Archive,
-  MoveRight,
-  MoreVertical,
-  CheckCircle2,
-  ChevronRight,
-  Link2,
   Code2,
   File as FileIcon
 } from "lucide-react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { apiFetch, uploadFileWithProgress, uploadFileChunked, API_BASE_URL } from "../../utils/api";
 
 const CHUNK_THRESHOLD = 5 * 1024 * 1024; // 5 MB
@@ -44,7 +26,7 @@ function formatSize(bytes) {
   const k = 1024;
   const sizes = ["B", "KB", "MB", "GB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))  } ${  sizes[i]}`;
 }
 
 function timeAgo(dateStr) {
@@ -187,7 +169,7 @@ function FileCard({ f, onToggleFavorite, onShare, onMove, onDownload, onDelete }
               <button onClick={() => onDownload(f.file_id, f.file_name)} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
                 <Download className="w-4 h-4" /> Download
               </button>
-              <div className="my-1 border-t border-slate-50"></div>
+              <div className="my-1 border-t border-slate-50" />
               <button onClick={() => onDelete(f.file_id)} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50">
                 <Trash2 className="w-4 h-4" /> Delete
               </button>
@@ -206,8 +188,8 @@ function FileCard({ f, onToggleFavorite, onShare, onMove, onDownload, onDelete }
       
       {/* Permanent Badges */}
       <div className="absolute bottom-4 right-4 flex gap-1.5">
-        {f.is_favorite && <div className="w-2 h-2 rounded-full bg-amber-400 shadow-sm" title="Favorited"></div>}
-        {f.share_token && <div className="w-2 h-2 rounded-full bg-cyan-400 shadow-sm" title="Shared"></div>}
+        {f.is_favorite && <div className="w-2 h-2 rounded-full bg-amber-400 shadow-sm" title="Favorited" />}
+        {f.share_token && <div className="w-2 h-2 rounded-full bg-cyan-400 shadow-sm" title="Shared" />}
       </div>
     </div>
   );
@@ -342,7 +324,7 @@ export function MyFiles() {
       await apiFetch(`/files/${fileId}`, { method: "DELETE" });
       setFiles((prev) => prev.filter((f) => f.file_id !== fileId));
     } catch (err) {
-      alert("Failed to delete: " + err.message);
+      alert(`Failed to delete: ${  err.message}`);
     }
   };
 
@@ -364,7 +346,7 @@ export function MyFiles() {
       a.remove();
       URL.revokeObjectURL(url);
     } catch (err) {
-      alert("Download failed: " + err.message);
+      alert(`Download failed: ${  err.message}`);
     }
   };
 
@@ -375,7 +357,7 @@ export function MyFiles() {
         prev.map((f) => (f.file_id === fileId ? { ...f, is_favorite: res.is_favorite } : f))
       );
     } catch (err) {
-      alert("Failed to toggle favorite: " + err.message);
+      alert(`Failed to toggle favorite: ${  err.message}`);
     }
   };
 
@@ -387,7 +369,7 @@ export function MyFiles() {
         prev.map((f) => (f.file_id === fileId ? { ...f, share_token: res.share_token } : f))
       );
     } catch (err) {
-      alert("Failed to generate share link: " + err.message);
+      alert(`Failed to generate share link: ${  err.message}`);
     }
   };
 
@@ -419,7 +401,7 @@ export function MyFiles() {
       setFolderModal(false);
       fetchFolders();
     } catch (err) {
-      alert("Failed to create folder: " + err.message);
+      alert(`Failed to create folder: ${  err.message}`);
     }
   };
 
@@ -431,7 +413,7 @@ export function MyFiles() {
       fetchFolders();
       fetchFiles();
     } catch (err) {
-      alert("Failed to delete folder: " + err.message);
+      alert(`Failed to delete folder: ${  err.message}`);
     }
   };
 
@@ -444,7 +426,7 @@ export function MyFiles() {
       setMoveModal({ open: false, fileId: null });
       fetchFiles();
     } catch (err) {
-      alert("Failed to move file: " + err.message);
+      alert(`Failed to move file: ${  err.message}`);
     }
   };
 
@@ -473,7 +455,7 @@ export function MyFiles() {
       <div className="grid gap-6 md:grid-cols-3">
         {/* Title Card */}
         <div className="md:col-span-2 relative overflow-hidden rounded-[2rem] bg-white border border-slate-100 shadow-sm p-8 flex flex-col justify-center">
-          <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 rounded-full bg-brand/5 blur-3xl pointer-events-none"></div>
+          <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 rounded-full bg-brand/5 blur-3xl pointer-events-none" />
           <div className="relative z-10">
             <h1 className="text-3xl font-black tracking-tight text-slate-900 sm:text-4xl mb-3">
               My Files
@@ -486,7 +468,7 @@ export function MyFiles() {
 
         {/* Upload/New Folder Actions */}
         <div className="rounded-[2rem] bg-slate-900 p-6 shadow-xl shadow-slate-900/10 flex flex-col justify-center relative overflow-hidden text-white">
-          <div className="absolute inset-0 bg-gradient-to-br from-brand/20 to-transparent pointer-events-none"></div>
+          <div className="absolute inset-0 bg-gradient-to-br from-brand/20 to-transparent pointer-events-none" />
           <div className="relative z-10 flex flex-col gap-3">
             <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileInput} multiple />
             
@@ -626,7 +608,7 @@ export function MyFiles() {
         <div className="p-6">
           {loading ? (
             <div className="flex py-24 items-center justify-center">
-              <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-brand"></div>
+              <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-brand" />
             </div>
           ) : filteredFiles.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">

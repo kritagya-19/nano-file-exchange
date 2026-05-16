@@ -1,6 +1,4 @@
 import { Cloud, Download, RefreshCw, Shield, Users, Zap } from "lucide-react";
-import { SectionGlow } from "./SectionGlow";
-import { BrushUnderline } from "./BrushUnderline";
 
 const items = [
   {

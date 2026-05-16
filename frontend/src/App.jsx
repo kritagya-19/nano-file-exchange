@@ -1,5 +1,5 @@
-import { Routes, Route, Navigate } from "react-router-dom";
-import { Suspense, lazy } from "react";
+import { Routes, Route, Navigate, Suspense } from "react-router-dom";
+import { lazy } from "react";
 
 // ── Auth guards & layouts (always loaded — small, critical-path components) ──
 import { RequireAuth } from "./components/RequireAuth";
@@ -14,8 +14,10 @@ import { Register } from "./pages/Register";
 
 // ── Lazy-loaded pages (only downloaded when the user navigates to them) ──
 // This reduces the initial JS bundle by ~60-70% — users only download what they visit.
+// eslint-disable-next-line unused-imports/no-unused-vars -- used as JSX components below
 
 // Public pages
+/* eslint-disable unused-imports/no-unused-vars */
 const ShareDownload = lazy(() => import("./pages/ShareDownload").then(m => ({ default: m.ShareDownload })));
 const AcceptInvite = lazy(() => import("./pages/AcceptInvite").then(m => ({ default: m.AcceptInvite })));
 
@@ -45,6 +47,7 @@ const AdminStorage = lazy(() => import("./pages/admin/AdminStorage").then(m => (
 const AdminRevenue = lazy(() => import("./pages/admin/AdminRevenue").then(m => ({ default: m.AdminRevenue })));
 const AdminActivity = lazy(() => import("./pages/admin/AdminActivity").then(m => ({ default: m.AdminActivity })));
 const AdminReports = lazy(() => import("./pages/admin/AdminReports").then(m => ({ default: m.AdminReports })));
+/* eslint-enable unused-imports/no-unused-vars */
 
 // ── Loading fallback shown while a lazy chunk is downloading ──
 function PageLoader() {

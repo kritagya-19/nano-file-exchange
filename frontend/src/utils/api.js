@@ -82,7 +82,7 @@ export const apiFetch = async (endpoint, options = {}) => {
       ...options,
       headers,
     });
-  } catch (networkErr) {
+  } catch {
     throw new Error("Cannot connect to server. Please make sure the backend is running.");
   }
 
@@ -199,71 +199,76 @@ export function uploadFileChunked(file, folderId, onProgress) {
   let currentXhr = null;
   let uploadedChunks = 0;
 
-  const promise = new Promise(async (resolve, reject) => {
-    for (let i = 0; i < totalChunks; i++) {
-      if (aborted) {
-        reject(new Error("Upload aborted"));
-        return;
-      }
+  const promise = new Promise((resolve, reject) => {
+    // Async logic lives outside the Promise executor (avoids no-async-promise-executor)
+    const runUpload = async () => {
+      for (let i = 0; i < totalChunks; i++) {
+        if (aborted) {
+          reject(new Error("Upload aborted"));
+          return;
+        }
 
-      const start = i * CHUNK_SIZE;
-      const end = Math.min(start + CHUNK_SIZE, file.size);
-      const chunk = file.slice(start, end);
+        const start = i * CHUNK_SIZE;
+        const end = Math.min(start + CHUNK_SIZE, file.size);
+        const chunk = file.slice(start, end);
 
-      const formData = new FormData();
-      formData.append("file", chunk, `chunk_${i}`);
-      formData.append("upload_id", uploadId);
-      formData.append("chunk_index", String(i));
-      formData.append("total_chunks", String(totalChunks));
-      formData.append("file_name", file.name);
-      formData.append("total_size", String(file.size));
-      if (folderId) formData.append("folder_id", String(folderId));
+        const formData = new FormData();
+        formData.append("file", chunk, `chunk_${i}`);
+        formData.append("upload_id", uploadId);
+        formData.append("chunk_index", String(i));
+        formData.append("total_chunks", String(totalChunks));
+        formData.append("file_name", file.name);
+        formData.append("total_size", String(file.size));
+        if (folderId) formData.append("folder_id", String(folderId));
 
-      try {
-        await new Promise((chunkResolve, chunkReject) => {
-          const xhr = new XMLHttpRequest();
-          currentXhr = xhr;
+        try {
+          await new Promise((chunkResolve, chunkReject) => {
+            const xhr = new XMLHttpRequest();
+            currentXhr = xhr;
 
-          xhr.addEventListener("load", () => {
-            if (xhr.status === 401) {
-              localStorage.removeItem("nanofile_user");
-              window.location.href = "/login";
-              chunkReject(new Error("Session expired"));
-              return;
-            }
-            if (xhr.status >= 200 && xhr.status < 300) {
-              uploadedChunks++;
-              onProgress(Math.round((uploadedChunks / totalChunks) * 100));
-              try {
-                chunkResolve(JSON.parse(xhr.responseText));
-              } catch {
-                chunkResolve({});
+            xhr.addEventListener("load", () => {
+              if (xhr.status === 401) {
+                localStorage.removeItem("nanofile_user");
+                window.location.href = "/login";
+                chunkReject(new Error("Session expired"));
+                return;
               }
-            } else {
-              try {
-                const err = JSON.parse(xhr.responseText);
-                chunkReject(new Error(err.detail || "Chunk upload failed"));
-              } catch {
-                chunkReject(new Error("Chunk upload failed"));
+              if (xhr.status >= 200 && xhr.status < 300) {
+                uploadedChunks++;
+                onProgress(Math.round((uploadedChunks / totalChunks) * 100));
+                try {
+                  chunkResolve(JSON.parse(xhr.responseText));
+                } catch {
+                  chunkResolve({});
+                }
+              } else {
+                try {
+                  const err = JSON.parse(xhr.responseText);
+                  chunkReject(new Error(err.detail || "Chunk upload failed"));
+                } catch {
+                  chunkReject(new Error("Chunk upload failed"));
+                }
               }
-            }
+            });
+
+            xhr.addEventListener("error", () => chunkReject(new Error("Network error")));
+            xhr.addEventListener("abort", () => chunkReject(new Error("Upload aborted")));
+
+            xhr.open("POST", `${API_BASE_URL}/files/upload/chunk`);
+            const token = getAuthToken();
+            if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+            xhr.send(formData);
           });
-
-          xhr.addEventListener("error", () => chunkReject(new Error("Network error")));
-          xhr.addEventListener("abort", () => chunkReject(new Error("Upload aborted")));
-
-          xhr.open("POST", `${API_BASE_URL}/files/upload/chunk`);
-          const token = getAuthToken();
-          if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
-          xhr.send(formData);
-        });
-      } catch (err) {
-        reject(err);
-        return;
+        } catch (err) {
+          reject(err);
+          return;
+        }
       }
-    }
-    // After all chunks uploaded, the last chunk response contains file info
-    resolve({ status: "complete" });
+      // After all chunks uploaded, the last chunk response contains file info
+      resolve({ status: "complete" });
+    };
+
+    runUpload();
   });
 
   return {

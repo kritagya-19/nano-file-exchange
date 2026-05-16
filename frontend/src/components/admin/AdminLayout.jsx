@@ -1,24 +1,16 @@
-import { useState, useEffect } from "react";
-import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import {
-  BarChart3,
-  ChevronLeft,
   FileBarChart,
   FileText,
   LayoutDashboard,
-  LogOut,
-  Menu,
   ScrollText,
   Settings,
-  Shield,
   Users,
   Wallet,
   HardDrive,
   Users2,
-  X,
-  ChevronDown,
-  ChevronUp,
 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { getAdminData, clearAdmin } from "../../utils/adminApi";
 
 const navItems = [

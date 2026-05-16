@@ -1,27 +1,15 @@
-import { useState, useEffect, useCallback } from "react";
-import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import {
-  ChevronRight,
-  Cloud,
   FolderOpen,
   LayoutDashboard,
-  LifeBuoy,
-  Menu,
-  Settings,
-  Share2,
   Star,
   Trash2,
   Users,
-  LogOut,
-  ChevronUp,
-  ChevronDown,
-  ChevronLeft,
-  X,
-  Zap,
 } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { nameFromEmail } from "../../utils/displayName";
 import { apiFetch } from "../../utils/api";
+import { nameFromEmail } from "../../utils/displayName";
 
 const mainNav = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, end: true },

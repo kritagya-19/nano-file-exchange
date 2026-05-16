@@ -1,4 +1,3 @@
-import { Github, Twitter } from "lucide-react";
 
 const cols = [
   {
