@@ -13,3 +13,8 @@ PyJWT==2.10.1
 orjson==3.10.18
 gunicorn==21.2.0
 requests==2.31.0
+
+# ── Test / CI dependencies ──────────────────────────────────────────
+pytest==8.3.4
+httpx==0.28.1
+flake8==7.1.1

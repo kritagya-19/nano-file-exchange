@@ -1,0 +1,21 @@
+[flake8]
+# Max line length — 100 is a pragmatic modern default
+max-line-length = 100
+
+# Exclude generated/vendor dirs
+exclude =
+    venv,
+    __pycache__,
+    .git,
+    *.egg-info,
+    dist,
+    build
+
+# Ignore rules that conflict with Black or are overly pedantic
+extend-ignore =
+    # E501: line too long (handled by max-line-length above)
+    E501,
+    # W503: line break before binary operator (conflicts with Black)
+    W503,
+    # E203: whitespace before ':' (conflicts with Black slices)
+    E203

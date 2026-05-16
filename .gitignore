@@ -33,3 +33,12 @@ frontend/.vite/
 # OS
 .DS_Store
 Thumbs.db
+
+# Test artifacts
+server/tests/__pycache__/
+server/.pytest_cache/
+server/test.db
+.coverage
+htmlcov/
+.vercel
+graphify-out/
