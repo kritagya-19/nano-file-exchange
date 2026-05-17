@@ -1,20 +1,17 @@
 import re
-from pydantic import BaseModel, field_validator, EmailStr
+from pydantic import BaseModel, field_validator
+from typing import Optional
+from datetime import datetime
 
 
-_PASSWORD_RE = re.compile(
-    r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':\"\\|,.<>/?`~]).{8,}$"
-)
-
-
-class UserRegister(BaseModel):
-    name: str
-    email: EmailStr
-    password: str
+class UpdateProfileRequest(BaseModel):
+    name: Optional[str] = None
 
     @field_validator("name")
     @classmethod
-    def validate_name(cls, v: str) -> str:
+    def validate_name(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
         v = v.strip()
         if len(v) < 2:
             raise ValueError("Name must be at least 2 characters")
@@ -22,9 +19,14 @@ class UserRegister(BaseModel):
             raise ValueError("Name must be at most 100 characters")
         return v
 
-    @field_validator("password")
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+    @field_validator("new_password")
     @classmethod
-    def validate_password(cls, v: str) -> str:
+    def validate_new_password(cls, v: str) -> str:
         if len(v) < 8:
             raise ValueError("Password must be at least 8 characters")
         if not re.search(r"[A-Z]", v):
@@ -38,21 +40,5 @@ class UserRegister(BaseModel):
         return v
 
 
-class UserLogin(BaseModel):
-    email: EmailStr
+class DeleteAccountRequest(BaseModel):
     password: str
-
-
-class TokenResponse(BaseModel):
-    token: str
-    user_id: int
-    name: str
-    email: str
-    message: str = "Success"
-
-
-class UserResponse(BaseModel):
-    user_id: int
-    name: str
-    email: str
-    status: str

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from typing import List
@@ -38,10 +38,21 @@ def list_my_groups(user_id: int = Depends(get_current_user_id), db: Session = De
     return db.scalars(query).all()
 
 @router.get("/explore", response_model=List[GroupResponse])
-def explore_groups(user_id: int = Depends(get_current_user_id), db: Session = Depends(get_db)):
+def explore_groups(
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
     # Groups where user is NOT a member
     my_groups_subquery = select(GroupMember.group_id).where(GroupMember.user_id == user_id)
-    query = select(Group).where(Group.group_id.not_in(my_groups_subquery))
+    query = (
+        select(Group)
+        .where(Group.group_id.not_in(my_groups_subquery))
+        .order_by(Group.created_at.desc())
+        .limit(limit)
+        .offset(offset)
+    )
     return db.scalars(query).all()
 
 @router.get("/{group_id}", response_model=GroupResponse)

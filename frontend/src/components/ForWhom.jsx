@@ -1,5 +1,6 @@
 import { Building2, GraduationCap, Briefcase } from "lucide-react";
-
+import { BrushUnderline } from "./BrushUnderline";
+import { SectionGlow } from "./SectionGlow";
 const cards = [
   {
     tag: "Perfect for group projects",

@@ -5,6 +5,10 @@ import {
   Zap,
   Crown,
   Sparkles,
+  Loader2,
+  ArrowLeft,
+  CreditCard,
+  Smartphone,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, Outlet } from "react-router-dom";
+import { Sparkles, X, LogIn, Plus, Search, MessageSquare, ShieldCheck, Lock } from "lucide-react";
 import { apiFetch } from "../../utils/api";
 
 // ─── PREMIUM MODAL ─────────────────────────────────────────────────────────

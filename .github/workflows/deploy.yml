@@ -31,6 +31,35 @@ jobs:
           npm i -g vercel@latest
           vercel deploy --prod --yes --token=$VERCEL_TOKEN
 
+      - name: Verify Live Frontend Health
+        env:
+          PROD_FRONTEND_URL: ${{ secrets.PROD_FRONTEND_URL }}
+        run: |
+          if [ -z "$PROD_FRONTEND_URL" ]; then
+            echo "⚠️ PROD_FRONTEND_URL secret not set. Skipping active frontend health verification."
+            echo "💡 To enable 10/10 automated health checks, add PROD_FRONTEND_URL (e.g., https://your-app.vercel.app) to your GitHub repository secrets."
+            exit 0
+          fi
+
+          echo "🔄 Polling live frontend at $PROD_FRONTEND_URL for up to 2 minutes..."
+          MAX_RETRIES=24
+          RETRY_COUNT=0
+          SLEEP_TIME=5
+
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            http_code=$(curl -s -o /dev/null -w "%{http_code}" "$PROD_FRONTEND_URL" || true)
+            if [ "$http_code" -eq 200 ]; then
+              echo "✅ Live frontend is healthy and fully deployed (HTTP 200)!"
+              exit 0
+            fi
+            echo "⏳ Frontend still deploying (HTTP $http_code). Retrying in ${SLEEP_TIME}s... ($((RETRY_COUNT+1))/$MAX_RETRIES)"
+            sleep $SLEEP_TIME
+            RETRY_COUNT=$((RETRY_COUNT+1))
+          done
+
+          echo "❌ Live frontend failed to report healthy status within 2 minutes."
+          exit 1
+
   # ──────────────────────────────────────────────────────────────────
   # Deploy Backend → Render (via Deploy Hook)
   # ──────────────────────────────────────────────────────────────────
@@ -50,3 +79,33 @@ jobs:
             exit 1
           fi
           echo "✅ Render deploy triggered successfully"
+
+      - name: Verify Live Backend Health
+        env:
+          PROD_BACKEND_URL: ${{ secrets.PROD_BACKEND_URL }}
+        run: |
+          if [ -z "$PROD_BACKEND_URL" ]; then
+            echo "⚠️ PROD_BACKEND_URL secret not set. Skipping active backend health verification."
+            echo "💡 To enable 10/10 automated health checks, add PROD_BACKEND_URL (e.g., https://your-app.onrender.com/api/health) to your GitHub repository secrets."
+            exit 0
+          fi
+
+          echo "🔄 Polling live backend at $PROD_BACKEND_URL for up to 3 minutes..."
+          MAX_RETRIES=36
+          RETRY_COUNT=0
+          SLEEP_TIME=5
+
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            http_code=$(curl -s -o /dev/null -w "%{http_code}" "$PROD_BACKEND_URL" || true)
+            if [ "$http_code" -eq 200 ]; then
+              echo "✅ Live backend is healthy and fully deployed (HTTP 200)!"
+              exit 0
+            fi
+            echo "⏳ Backend still deploying or starting up (HTTP $http_code). Retrying in ${SLEEP_TIME}s... ($((RETRY_COUNT+1))/$MAX_RETRIES)"
+            sleep $SLEEP_TIME
+            RETRY_COUNT=$((RETRY_COUNT+1))
+          done
+
+          echo "❌ Live backend failed to report healthy status within 3 minutes."
+          echo "🚨 Triggering automated deployment failure alert."
+          exit 1

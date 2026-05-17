@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
-const STORAGE_KEY = "nanofile_user";
+export const AUTH_STORAGE_KEY = "nanofile_user";
 
 const AuthContext = createContext(null);
 
@@ -10,7 +10,7 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      const raw = localStorage.getItem(AUTH_STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
         if (parsed?.token && parsed?.email) {
@@ -18,7 +18,7 @@ export function AuthProvider({ children }) {
         }
       }
     } catch {
-      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(AUTH_STORAGE_KEY);
     }
     setReady(true);
   }, []);
@@ -26,12 +26,12 @@ export function AuthProvider({ children }) {
   const login = useCallback((payload) => {
     // Expected payload: { token: string, user_id: number, name: string, email: string }
     setUser(payload);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(payload));
   }, []);
 
   const logout = useCallback(() => {
     setUser(null);
-    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(AUTH_STORAGE_KEY);
   }, []);
 
   const value = useMemo(() => ({ user, login, logout, ready }), [user, login, logout, ready]);

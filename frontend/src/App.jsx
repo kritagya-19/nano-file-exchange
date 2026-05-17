@@ -1,5 +1,5 @@
-import { Routes, Route, Navigate, Suspense } from "react-router-dom";
-import { lazy } from "react";
+import { Routes, Route, Navigate } from "react-router-dom";
+import { lazy, Suspense } from "react";
 
 // ── Auth guards & layouts (always loaded — small, critical-path components) ──
 import { RequireAuth } from "./components/RequireAuth";

@@ -1,5 +1,6 @@
 import { Share2, Upload, UserPlus } from "lucide-react";
-
+import { BrushUnderline } from "./BrushUnderline";
+import { SectionGlow } from "./SectionGlow";
 const steps = [
   {
     n: 1,

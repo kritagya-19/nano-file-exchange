@@ -1,3 +1,4 @@
+import { LifeBuoy, MessageCircle, Mail } from "lucide-react";
 
 export function HelpPage() {
   return (

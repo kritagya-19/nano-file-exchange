@@ -14,7 +14,8 @@ import json
 import pytest
 
 # ── Patch env BEFORE any app modules are imported (config reads at import) ──
-os.environ.setdefault("DB_URL", "sqlite:///./test_integration.db")
+# DB_URL is intentionally NOT set here — the test engine uses in-memory SQLite
+# (see TEST_DB_URL below), and the app's get_db is overridden per-test.
 os.environ.setdefault("SECRET_KEY", "test-secret-key-for-ci-only")
 os.environ.setdefault("FRONTEND_URL", "http://localhost:5173")
 

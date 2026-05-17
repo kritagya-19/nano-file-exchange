@@ -6,6 +6,7 @@ Uses Python's built-in csv + io — zero new dependencies.
 
 import csv
 import io
+import json as _json
 from datetime import datetime, UTC
 from typing import Optional
 
@@ -169,30 +170,53 @@ def report_users(
         query = query.where(User.created_at <= end_dt)
 
     users = db.scalars(query.order_by(desc(User.created_at))).all()
+    if not users:
+        now = datetime.now(UTC).strftime("%Y%m%d_%H%M")
+        return _csv_response([], headers, f"users_report_{now}.csv")
+
+    # ── Batch aggregation: 2 queries instead of 3N ──
+    user_ids = [u.user_id for u in users]
+
+    storage_rows = db.execute(
+        select(
+            File.user_id,
+            func.coalesce(func.sum(File.size), 0).label("total_size"),
+            func.count(File.file_id).label("file_count"),
+        )
+        .where(File.user_id.in_(user_ids))
+        .group_by(File.user_id)
+    ).all()
+    storage_map = {r[0]: {"size": int(r[1]), "count": r[2]} for r in storage_rows}
+
+    group_rows = db.execute(
+        select(GroupMember.user_id, func.count(GroupMember.id))
+        .where(GroupMember.user_id.in_(user_ids), GroupMember.status == "approved")
+        .group_by(GroupMember.user_id)
+    ).all()
+    group_map = {r[0]: r[1] for r in group_rows}
+
+    sub_rows = db.execute(
+        select(Subscription.user_id, Subscription.plan)
+        .where(Subscription.user_id.in_(user_ids), Subscription.status == "active")
+        .order_by(desc(Subscription.purchased_at))
+    ).all()
+    plan_map: dict = {}
+    for uid, plan_name in sub_rows:
+        if uid not in plan_map:
+            plan_map[uid] = plan_name
 
     headers = ["User ID", "Name", "Email", "Plan", "Status", "Storage Used",
                "Storage (bytes)", "Files Uploaded", "Groups Joined", "Signup Date"]
     rows = []
     for u in users:
-        storage = db.scalar(
-            select(func.coalesce(func.sum(File.size), 0)).where(File.user_id == u.user_id)
-        ) or 0
-        file_count = db.scalar(
-            select(func.count(File.file_id)).where(File.user_id == u.user_id)
-        ) or 0
-        group_count = db.scalar(
-            select(func.count(GroupMember.id))
-            .where(GroupMember.user_id == u.user_id, GroupMember.status == "approved")
-        ) or 0
-        sub = db.scalar(
-            select(Subscription)
-            .where(Subscription.user_id == u.user_id, Subscription.status == "active")
-            .order_by(desc(Subscription.purchased_at))
-        )
-        plan = sub.plan if sub else "free"
+        st = storage_map.get(u.user_id, {"size": 0, "count": 0})
         rows.append([
-            u.user_id, u.name, u.email, plan.upper(), u.status,
-            _fmt_bytes(int(storage)), int(storage), file_count, group_count,
+            u.user_id, u.name, u.email,
+            plan_map.get(u.user_id, "free").upper(),
+            u.status,
+            _fmt_bytes(st["size"]), st["size"],
+            st["count"],
+            group_map.get(u.user_id, 0),
             _fmt_dt(u.created_at),
         ])
 
@@ -293,17 +317,23 @@ def report_storage(
         .order_by(desc("usage"))
     ).all()
 
-    # Get plan for each user
+    # ── Batch plan lookup: 1 query instead of N ──
+    all_user_ids = [r[0] for r in per_user]
+    sub_rows = db.execute(
+        select(Subscription.user_id, Subscription.plan)
+        .where(Subscription.user_id.in_(all_user_ids), Subscription.status == "active")
+        .order_by(desc(Subscription.purchased_at))
+    ).all()
+    plan_map: dict = {}
+    for uid, plan_name in sub_rows:
+        if uid not in plan_map:
+            plan_map[uid] = plan_name
+
     headers = ["User ID", "Name", "Email", "Plan", "Storage Used", "Storage (bytes)",
                "File Count", "% of Total"]
     rows = []
     for uid, name, email, usage, fcount in per_user:
-        sub = db.scalar(
-            select(Subscription)
-            .where(Subscription.user_id == uid, Subscription.status == "active")
-            .order_by(desc(Subscription.purchased_at))
-        )
-        plan = sub.plan.upper() if sub else "FREE"
+        plan = plan_map.get(uid, "free").upper()
         pct = (int(usage) / int(total_storage) * 100) if total_storage > 0 else 0
         rows.append([
             uid, name, email, plan, _fmt_bytes(int(usage)),
@@ -327,24 +357,39 @@ def report_groups(
         .order_by(desc(Group.created_at))
     ).all()
 
+    # ── Batch member counts: 3 queries instead of 3N ──
+    group_ids = [grp.group_id for grp, _ in results]
+    total_rows = db.execute(
+        select(GroupMember.group_id, func.count(GroupMember.id))
+        .where(GroupMember.group_id.in_(group_ids))
+        .group_by(GroupMember.group_id)
+    ).all()
+    total_map = {r[0]: r[1] for r in total_rows}
+
+    approved_rows = db.execute(
+        select(GroupMember.group_id, func.count(GroupMember.id))
+        .where(GroupMember.group_id.in_(group_ids), GroupMember.status == "approved")
+        .group_by(GroupMember.group_id)
+    ).all()
+    approved_map = {r[0]: r[1] for r in approved_rows}
+
+    pending_rows = db.execute(
+        select(GroupMember.group_id, func.count(GroupMember.id))
+        .where(GroupMember.group_id.in_(group_ids), GroupMember.status == "pending")
+        .group_by(GroupMember.group_id)
+    ).all()
+    pending_map = {r[0]: r[1] for r in pending_rows}
+
     headers = ["Group ID", "Group Name", "Creator", "Total Members", "Approved Members",
                "Pending Members", "Created At"]
     rows = []
     for grp, creator_name in results:
-        total_m = db.scalar(
-            select(func.count(GroupMember.id)).where(GroupMember.group_id == grp.group_id)
-        ) or 0
-        approved = db.scalar(
-            select(func.count(GroupMember.id))
-            .where(GroupMember.group_id == grp.group_id, GroupMember.status == "approved")
-        ) or 0
-        pending = db.scalar(
-            select(func.count(GroupMember.id))
-            .where(GroupMember.group_id == grp.group_id, GroupMember.status == "pending")
-        ) or 0
         rows.append([
             grp.group_id, grp.group_name, creator_name or "Unknown",
-            total_m, approved, pending, _fmt_dt(grp.created_at),
+            total_map.get(grp.group_id, 0),
+            approved_map.get(grp.group_id, 0),
+            pending_map.get(grp.group_id, 0),
+            _fmt_dt(grp.created_at),
         ])
 
     now = datetime.now(UTC).strftime("%Y%m%d_%H%M")

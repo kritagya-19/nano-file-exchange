@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import select, and_
-from typing import List
+from typing import List, Optional
 
 from app.database import get_db
 from app.models.message import Message, MessageReaction, MessageStar, MessageHide
@@ -25,7 +25,9 @@ def send_message(group_id: int, payload: MessageCreate, user_id: int = Depends(g
         raise HTTPException(status_code=403, detail="Not an approved member of this group")
         
     sender = db.scalar(select(User).where(User.user_id == user_id))
-    
+    if not sender:
+        raise HTTPException(status_code=404, detail="Sender not found")
+
     new_message = Message(
         group_id=group_id,
         sender_id=user_id,
@@ -44,7 +46,7 @@ def send_message(group_id: int, payload: MessageCreate, user_id: int = Depends(g
         if file_record:
             file_name = file_record.file_name
             file_url = file_record.cloud_url or f"/api/files/{file_record.file_id}"
-    
+
     return {
         "id": new_message.id,
         "group_id": new_message.group_id,
@@ -62,7 +64,13 @@ def send_message(group_id: int, payload: MessageCreate, user_id: int = Depends(g
     }
 
 @router.get("/{group_id}", response_model=List[MessageResponse])
-def get_messages(group_id: int, user_id: int = Depends(get_current_user_id), db: Session = Depends(get_db)):
+def get_messages(
+    group_id: int,
+    limit: int = Query(50, ge=1, le=200),
+    before_id: Optional[int] = Query(None, description="Return messages with id < before_id (cursor pagination)"),
+    user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
     # Verify user is approved member or creator
     group = db.scalar(select(Group).where(Group.group_id == group_id))
     if not group:
@@ -76,20 +84,22 @@ def get_messages(group_id: int, user_id: int = Depends(get_current_user_id), db:
     # We must exclude messages hidden by this user
     # Subquery for messages hidden by this user
     hidden_subquery = select(MessageHide.message_id).where(MessageHide.user_id == user_id)
-    
+
+    filter_conditions = [
+        Message.group_id == group_id,
+        Message.id.not_in(hidden_subquery),
+    ]
+    if before_id is not None:
+        filter_conditions.append(Message.id < before_id)
+
     query = (
         select(Message, User.name, File)
         .join(User, Message.sender_id == User.user_id)
         .outerjoin(File, Message.file_id == File.file_id)
         .options(selectinload(Message.reactions), selectinload(Message.stars))
-        .where(
-            and_(
-                Message.group_id == group_id,
-                Message.id.not_in(hidden_subquery)
-            )
-        )
+        .where(and_(*filter_conditions))
         .order_by(Message.sent_at.desc())
-        .limit(50)
+        .limit(limit)
     )
     results = db.execute(query).all()
     

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { Search, Eye, Trash2, Users, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { adminFetch } from "../../utils/adminApi";
 
 export function AdminGroups() {

@@ -1,7 +1,9 @@
+import { AUTH_STORAGE_KEY } from "../context/AuthContext";
+
 export const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
 
 const getAuthToken = () => {
-  const raw = localStorage.getItem("nanofile_user");
+  const raw = localStorage.getItem(AUTH_STORAGE_KEY);
   if (raw) {
     try {
       const parsed = JSON.parse(raw);
@@ -94,7 +96,7 @@ export const apiFetch = async (endpoint, options = {}) => {
     if (response.status === 401) {
       const isPublicEndpoint = endpoint.includes("/invite/") || endpoint.includes("/share/") || endpoint.startsWith("/auth/");
       if (!isPublicEndpoint && typeof window !== "undefined") {
-        localStorage.removeItem("nanofile_user");
+        localStorage.removeItem(AUTH_STORAGE_KEY);
         if (!window.location.pathname.includes("/login") && !window.location.pathname.includes("/invite/")) {
           window.location.href = "/login";
         }
@@ -152,7 +154,7 @@ export function uploadFileWithProgress(file, folderId, onProgress) {
 
     xhr.addEventListener("load", () => {
       if (xhr.status === 401) {
-        localStorage.removeItem("nanofile_user");
+        localStorage.removeItem(AUTH_STORAGE_KEY);
         window.location.href = "/login";
         reject(new Error("Session expired"));
         return;
@@ -228,7 +230,7 @@ export function uploadFileChunked(file, folderId, onProgress) {
 
             xhr.addEventListener("load", () => {
               if (xhr.status === 401) {
-                localStorage.removeItem("nanofile_user");
+                localStorage.removeItem(AUTH_STORAGE_KEY);
                 window.location.href = "/login";
                 chunkReject(new Error("Session expired"));
                 return;

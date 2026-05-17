@@ -1,5 +1,6 @@
 import { Cloud, Download, RefreshCw, Shield, Users, Zap } from "lucide-react";
-
+import { BrushUnderline } from "./BrushUnderline";
+import { SectionGlow } from "./SectionGlow";
 const items = [
   {
     title: "Pause & Resume Uploads",

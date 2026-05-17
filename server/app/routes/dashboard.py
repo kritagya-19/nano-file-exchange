@@ -1,20 +1,26 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from sqlalchemy import select, func
+from sqlalchemy import select, func, desc
 
 from app.database import get_db
 from app.models.file import File, Folder
 from app.models.group import GroupMember
 from app.models.subscription import Subscription
+from app.models.plan import Plan
 from app.middleware.auth import get_current_user_id
 
 router = APIRouter()
 
-PLAN_STORAGE_LIMITS = {
-    "free": 20 * 1024 * 1024 * 1024,     # 20 GB
-    "pro":  300 * 1024 * 1024 * 1024,    # 300 GB
-    "max":  1024 * 1024 * 1024 * 1024,   # 1 TB
-}
+# Fallback if plans table is empty (should not happen in production)
+_DEFAULT_STORAGE_LIMIT = 20 * 1024 * 1024 * 1024  # 20 GB
+
+
+def _get_storage_limit(plan_key: str, db: Session) -> int:
+    """Read storage limit from DB Plan table. Falls back to free tier if not found."""
+    plan = db.scalar(select(Plan).where(Plan.plan_key == plan_key))
+    if plan:
+        return int(plan.storage_limit_gb * 1024 ** 3)
+    return _DEFAULT_STORAGE_LIMIT
 
 
 @router.get("/stats")
@@ -29,9 +35,12 @@ def get_dashboard_stats(user_id: int = Depends(get_current_user_id), db: Session
         select(func.coalesce(func.sum(File.size), 0)).where(File.user_id == user_id)
     ) or 0
 
-    # Active groups
+    # Active groups (only count approved memberships)
     active_groups = db.scalar(
-        select(func.count(GroupMember.id)).where(GroupMember.user_id == user_id)
+        select(func.count(GroupMember.id)).where(
+            GroupMember.user_id == user_id,
+            GroupMember.status == "approved",
+        )
     ) or 0
 
     # Shared files (files with share_token)
@@ -92,14 +101,14 @@ def get_dashboard_stats(user_id: int = Depends(get_current_user_id), db: Session
         type_breakdown[category]["count"] += 1
         type_breakdown[category]["size"] += fsize or 0
 
-    # Determine user's plan-based storage limit
+    # Determine user's plan-based storage limit (read from DB)
     sub = db.scalar(
         select(Subscription)
         .where(Subscription.user_id == user_id, Subscription.status == "active")
-        .order_by(Subscription.purchased_at.desc())
+        .order_by(desc(Subscription.purchased_at))
     )
     current_plan = sub.plan if sub else "free"
-    storage_limit = PLAN_STORAGE_LIMITS.get(current_plan, PLAN_STORAGE_LIMITS["free"])
+    storage_limit = _get_storage_limit(current_plan, db)
 
     # Storage percentage
     storage_pct = round((storage_used / storage_limit) * 100, 2) if storage_limit else 0

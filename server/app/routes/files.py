@@ -1,12 +1,15 @@
 import os
+import re
 import uuid
+import logging
 import shutil
 from datetime import UTC, datetime
+from typing import List, Optional
+
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from fastapi.responses import FileResponse as FastAPIFileResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import select
-from typing import List, Optional
 
 from app.database import get_db
 from app.models.file import File as FileModel, StorageDetail
@@ -16,13 +19,21 @@ from app.config import settings
 from app.utils.file_ops import resolve_abs_file_path as _resolve_abs_file_path, delete_file_from_disk as _delete_file_from_disk
 
 router = APIRouter()
-
-import re
-import logging
-
 logger = logging.getLogger(__name__)
 
 _SAFE_UPLOAD_ID_RE = re.compile(r'^[a-f0-9]{8,64}$')
+
+# Max single-upload size: 500 MB (enforced server-side as a safety net)
+MAX_UPLOAD_BYTES = 500 * 1024 * 1024  # 500 MB
+
+# Allowed file extensions — rejects executables and dangerous server-side scripts
+_BLOCKED_EXTENSIONS = {
+    ".exe", ".bat", ".cmd", ".sh", ".ps1", ".psm1", ".psd1",
+    ".msi", ".dll", ".so", ".dylib", ".com", ".scr", ".vbs", ".vbe",
+    ".js",  # when served as application, can be dangerous
+    ".php", ".php3", ".php4", ".php5", ".phtml",
+    ".asp", ".aspx", ".cgi", ".pl", ".py", ".rb",
+}
 
 
 def _build_file_response(f: FileModel) -> FileResponse:
@@ -40,6 +51,18 @@ def _build_file_response(f: FileModel) -> FileResponse:
     )
 
 
+def _validate_filename(filename: str) -> str:
+    """Strip to basename, check length, block dangerous extensions."""
+    safe = os.path.basename(filename or "uploaded_file")
+    if not safe:
+        raise HTTPException(status_code=400, detail="Invalid file name")
+    if len(safe) > 255:
+        raise HTTPException(status_code=400, detail="File name too long (max 255 chars)")
+    _, ext = os.path.splitext(safe.lower())
+    if ext in _BLOCKED_EXTENSIONS:
+        raise HTTPException(status_code=400, detail=f"File type '{ext}' is not allowed for security reasons")
+    return safe
+
 
 # ── Upload (single file, with progress on frontend via XHR) ──────────────────
 @router.post("/upload")
@@ -49,42 +72,74 @@ async def upload_file(
     user_id: int = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
-    safe_filename = os.path.basename(file.filename or "uploaded_file")
+    safe_filename = _validate_filename(file.filename)
     unique_filename = f"{uuid.uuid4().hex}_{safe_filename}"
     filepath = os.path.join(settings.UPLOAD_DIR, unique_filename)
 
     # Stream to disk in 1 MB chunks — never loads entire file into RAM
     actual_size = 0
-    with open(filepath, "wb") as f:
-        while True:
-            chunk = await file.read(1024 * 1024)  # 1 MB at a time
-            if not chunk:
-                break
-            f.write(chunk)
-            actual_size += len(chunk)
+    try:
+        with open(filepath, "wb") as f:
+            while True:
+                chunk = await file.read(1024 * 1024)  # 1 MB at a time
+                if not chunk:
+                    break
+                actual_size += len(chunk)
+                if actual_size > MAX_UPLOAD_BYTES:
+                    # Clean up partial file before raising
+                    f.close()
+                    try:
+                        os.remove(filepath)
+                    except OSError:
+                        pass
+                    raise HTTPException(
+                        status_code=413,
+                        detail=f"File too large. Maximum allowed size is {MAX_UPLOAD_BYTES // (1024*1024)} MB."
+                    )
+                f.write(chunk)
+    except HTTPException:
+        raise
+    except Exception as e:
+        # Clean up partial file on any unexpected I/O error
+        try:
+            os.remove(filepath)
+        except OSError:
+            pass
+        logger.error("File write failed for %s: %s", filepath, e)
+        raise HTTPException(status_code=500, detail="Failed to save uploaded file")
 
-    new_file = FileModel(
-        file_name=safe_filename,
-        size=actual_size,
-        file_path=unique_filename,
-        user_id=user_id,
-        folder_id=int(folder_id) if folder_id else None,
-        uploaded_at=datetime.now(UTC),
-    )
-    db.add(new_file)
+    try:
+        new_file = FileModel(
+            file_name=safe_filename,
+            size=actual_size,
+            file_path=unique_filename,
+            user_id=user_id,
+            folder_id=int(folder_id) if folder_id else None,
+            uploaded_at=datetime.now(UTC),
+        )
+        db.add(new_file)
 
-    file_ext = os.path.splitext(safe_filename)[1][1:].lower() or "unknown"
-    storage_detail = StorageDetail(
-        file_id=0,  # placeholder, will update after flush
-        sender_id=user_id,
-        file_type=file_ext,
-    )
-    # Flush to get the file_id, then set it on storage_detail — single commit
-    db.flush()
-    db.refresh(new_file)
-    storage_detail.file_id = new_file.file_id
-    db.add(storage_detail)
-    db.commit()
+        file_ext = os.path.splitext(safe_filename)[1][1:].lower() or "unknown"
+        storage_detail = StorageDetail(
+            file_id=0,  # placeholder, will update after flush
+            sender_id=user_id,
+            file_type=file_ext,
+        )
+        # Flush to get the file_id, then set it on storage_detail — single commit
+        db.flush()
+        db.refresh(new_file)
+        storage_detail.file_id = new_file.file_id
+        db.add(storage_detail)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        # DB failed — clean up the file we already wrote to disk
+        try:
+            os.remove(filepath)
+        except OSError:
+            pass
+        logger.error("DB write failed after file upload for user %d: %s", user_id, e)
+        raise HTTPException(status_code=500, detail="Failed to record uploaded file")
 
     return {
         "status": "complete",
@@ -111,15 +166,20 @@ async def upload_chunk(
     if chunk_index < 0 or total_chunks <= 0 or chunk_index >= total_chunks:
         raise HTTPException(status_code=400, detail="Invalid chunk index or total chunks")
 
+    # Validate declared total_size against limit
+    if total_size and total_size > MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large. Maximum allowed size is {MAX_UPLOAD_BYTES // (1024*1024)} MB."
+        )
+
     # SECURITY: Sanitize upload_id — must be a safe hexadecimal UUID-like string
     safe_upload_id = os.path.basename(upload_id)
     if not _SAFE_UPLOAD_ID_RE.match(safe_upload_id):
         raise HTTPException(status_code=400, detail="Invalid upload_id format")
 
-    # SECURITY: Sanitize file_name — strip to basename only, no directory separators
-    safe_file_name = os.path.basename(file_name)
-    if not safe_file_name:
-        raise HTTPException(status_code=400, detail="Invalid file name")
+    # SECURITY: Sanitize file_name — strip to basename, validate type
+    safe_file_name = _validate_filename(file_name)
 
     chunk_content = await file.read()
     chunk_dir = os.path.join(settings.UPLOAD_DIR, "chunks", safe_upload_id)
@@ -144,13 +204,18 @@ async def upload_chunk(
     final_path = os.path.join(settings.UPLOAD_DIR, unique_filename)
 
     assembled_size = 0
-    with open(final_path, "wb") as out:
-        for i in range(total_chunks):
-            cp = os.path.join(chunk_dir, f"chunk_{i}")
-            with open(cp, "rb") as chunk_file:
-                data = chunk_file.read()
-                assembled_size += len(data)
-                out.write(data)
+    try:
+        with open(final_path, "wb") as out:
+            for i in range(total_chunks):
+                cp = os.path.join(chunk_dir, f"chunk_{i}")
+                with open(cp, "rb") as chunk_file:
+                    data = chunk_file.read()
+                    assembled_size += len(data)
+                    out.write(data)
+    except Exception as e:
+        shutil.rmtree(chunk_dir, ignore_errors=True)
+        logger.error("Chunk assembly failed for upload %s: %s", safe_upload_id, e)
+        raise HTTPException(status_code=500, detail="Failed to assemble uploaded chunks")
 
     # If client provided expected size, verify integrity before committing DB row.
     if total_size and assembled_size != total_size:
@@ -158,31 +223,41 @@ async def upload_chunk(
             os.remove(final_path)
         except OSError as e:
             logger.error("Failed to remove mismatched file %s: %s", final_path, e)
-        raise HTTPException(status_code=400, detail="Uploaded file size mismatch")
+        shutil.rmtree(chunk_dir, ignore_errors=True)
+        raise HTTPException(status_code=400, detail="Uploaded file size mismatch — data may be corrupted")
 
     # Clean up chunk files
     shutil.rmtree(chunk_dir, ignore_errors=True)
 
-    new_file = FileModel(
-        file_name=safe_file_name,
-        size=assembled_size,
-        file_path=unique_filename,
-        user_id=user_id,
-        folder_id=int(folder_id) if folder_id else None,
-        uploaded_at=datetime.now(UTC),
-    )
-    db.add(new_file)
-    db.commit()
-    db.refresh(new_file)
+    try:
+        new_file = FileModel(
+            file_name=safe_file_name,
+            size=assembled_size,
+            file_path=unique_filename,
+            user_id=user_id,
+            folder_id=int(folder_id) if folder_id else None,
+            uploaded_at=datetime.now(UTC),
+        )
+        db.add(new_file)
+        db.flush()
+        db.refresh(new_file)
 
-    file_ext = os.path.splitext(safe_file_name)[1][1:].lower() or "unknown"
-    storage_detail = StorageDetail(
-        file_id=new_file.file_id,
-        sender_id=user_id,
-        file_type=file_ext,
-    )
-    db.add(storage_detail)
-    db.commit()
+        file_ext = os.path.splitext(safe_file_name)[1][1:].lower() or "unknown"
+        storage_detail = StorageDetail(
+            file_id=new_file.file_id,
+            sender_id=user_id,
+            file_type=file_ext,
+        )
+        db.add(storage_detail)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        try:
+            os.remove(final_path)
+        except OSError:
+            pass
+        logger.error("DB write failed after chunked upload for user %d: %s", user_id, e)
+        raise HTTPException(status_code=500, detail="Failed to record uploaded file")
 
     return {
         "status": "complete",
@@ -219,7 +294,7 @@ def get_starred_files(
 ):
     files = db.scalars(
         select(FileModel)
-        .where(FileModel.user_id == user_id, FileModel.is_favorite == True)
+        .where(FileModel.user_id == user_id, FileModel.is_favorite == True)  # noqa: E712
         .order_by(FileModel.uploaded_at.desc())
     ).all()
     return [_build_file_response(f) for f in files]
@@ -242,6 +317,8 @@ def get_shared_files(
 # ── Public shared download (no auth required) ─────────────────────────────────
 @router.get("/shared/{share_token}")
 def download_shared_file(share_token: str, db: Session = Depends(get_db)):
+    if not share_token or len(share_token) > 64 or not re.match(r'^[a-f0-9]+$', share_token):
+        raise HTTPException(status_code=400, detail="Invalid share token")
     file_record = db.scalar(
         select(FileModel).where(FileModel.share_token == share_token)
     )
@@ -261,6 +338,8 @@ def download_shared_file(share_token: str, db: Session = Depends(get_db)):
 # ── Get shared file info (no auth required) ───────────────────────────────────
 @router.get("/shared/{share_token}/info")
 def get_shared_file_info(share_token: str, db: Session = Depends(get_db)):
+    if not share_token or len(share_token) > 64 or not re.match(r'^[a-f0-9]+$', share_token):
+        raise HTTPException(status_code=400, detail="Invalid share token")
     file_record = db.scalar(
         select(FileModel).where(FileModel.share_token == share_token)
     )

@@ -1,4 +1,6 @@
 
+import { ArrowRight, Check, Shield } from "lucide-react";
+import { Link } from "react-router-dom";
 export function CTA() {
   return (
     <section id="cta" className="relative overflow-hidden py-20 sm:py-24">

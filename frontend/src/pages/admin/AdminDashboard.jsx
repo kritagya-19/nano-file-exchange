@@ -1,4 +1,21 @@
-import { Users, FileText, HardDrive, DollarSign } from "lucide-react";
+import { Users, FileText, HardDrive, DollarSign, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+  LineChart,
+  Line
+} from "recharts";
 import { useState, useEffect } from "react";
 import { adminFetch } from "../../utils/adminApi";
 

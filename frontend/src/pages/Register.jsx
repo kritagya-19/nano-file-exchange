@@ -1,7 +1,10 @@
 import { useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, Navigate, Link } from "react-router-dom";
+import { Eye, EyeOff, Lock, Mail, UserRound } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { apiFetch } from "../utils/api";
+import { AuthLayout } from "../components/AuthLayout";
+import { PasswordRuleList } from "../components/PasswordRuleList";
 import {
   validateConfirmPassword,
   validateEmail,
@@ -49,6 +52,8 @@ export function Register() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [touched, setTouched] = useState({ name: false, email: false, password: false, confirmPassword: false });
   const [submitted, setSubmitted] = useState(false);
+  const [serverError, setServerError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   if (ready && user?.email) {
     return <Navigate to={from} replace />;
@@ -67,33 +72,44 @@ export function Register() {
   async function handleSubmit(e) {
     e.preventDefault();
     setSubmitted(true);
+    setServerError("");
     if (nameError || emailError || passwordError || confirmError) return;
-    
+
+    setIsLoading(true);
     try {
       const response = await apiFetch("/auth/register", {
         method: "POST",
-        body: { 
-          name: name.trim(), 
-          email: email.trim(), 
-          password 
-        }
+        body: {
+          name: name.trim(),
+          email: email.trim().toLowerCase(),
+          password,
+        },
       });
-      
-      login({ 
+
+      login({
         token: response.token,
         user_id: response.user_id,
-        name: response.name, 
-        email: response.email 
+        name: response.name,
+        email: response.email,
       });
       navigate(from, { replace: true });
     } catch (err) {
-      alert(err.message || "Failed to create account. Email might already be taken.");
+      setServerError(err.message || "Failed to create account. Email might already be taken.");
+    } finally {
+      setIsLoading(false);
     }
   }
 
   return (
     <AuthLayout title="Create your account" subtitle="Start sharing files smarter in seconds">
       <form onSubmit={handleSubmit} noValidate className="space-y-5">
+        {/* Server-level error banner */}
+        {serverError && (
+          <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+            {serverError}
+          </div>
+        )}
+
         <div>
           <label htmlFor="register-name" className="text-sm font-medium text-slate-800">
             Full Name
@@ -106,7 +122,7 @@ export function Register() {
               type="text"
               autoComplete="name"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => { setName(e.target.value); setServerError(""); }}
               onBlur={() => setTouched((t) => ({ ...t, name: true }))}
               className={inputInner}
               placeholder="John Doe"
@@ -129,7 +145,7 @@ export function Register() {
               type="email"
               autoComplete="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => { setEmail(e.target.value); setServerError(""); }}
               onBlur={() => setTouched((t) => ({ ...t, email: true }))}
               className={inputInner}
               placeholder="you@example.com"
@@ -207,9 +223,10 @@ export function Register() {
 
         <button
           type="submit"
-          className="mt-2 w-full rounded-lg bg-brand py-3 text-sm font-semibold text-white shadow-md shadow-brand/25 transition hover:bg-brand-dark focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2"
+          disabled={isLoading}
+          className="mt-2 w-full rounded-lg bg-brand py-3 text-sm font-semibold text-white shadow-md shadow-brand/25 transition hover:bg-brand-dark focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          Create Account
+          {isLoading ? "Creating account…" : "Create Account"}
         </button>
       </form>
 
@@ -223,7 +240,7 @@ export function Register() {
       </div>
 
       <Link
-        to={`/login${redirectParam ? `?redirect=${encodeURIComponent(redirectParam)}` : ''}`}
+        to={`/login${redirectParam ? `?redirect=${encodeURIComponent(redirectParam)}` : ""}`}
         className="flex w-full items-center justify-center rounded-lg border border-slate-300 bg-white py-3 text-sm font-semibold text-slate-900 shadow-sm transition hover:border-slate-400 hover:bg-slate-50"
       >
         Sign in to existing account

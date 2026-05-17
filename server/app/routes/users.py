@@ -1,8 +1,7 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func
-from pydantic import BaseModel
-from typing import Optional
 
 from app.database import get_db
 from app.models.user import User
@@ -11,21 +10,10 @@ from app.models.group import GroupMember
 from app.middleware.auth import get_current_user_id
 from app.utils.security import verify_password, get_password_hash, create_access_token
 from app.utils.file_ops import delete_file_from_disk as _delete_file_from_disk
+from app.schemas.user import UpdateProfileRequest, ChangePasswordRequest, DeleteAccountRequest
 
 router = APIRouter()
-
-
-class UpdateProfileRequest(BaseModel):
-    name: Optional[str] = None
-
-
-class ChangePasswordRequest(BaseModel):
-    current_password: str
-    new_password: str
-
-
-class DeleteAccountRequest(BaseModel):
-    password: str
+logger = logging.getLogger(__name__)
 
 
 @router.get("/me")
@@ -70,23 +58,22 @@ def get_profile(user_id: int = Depends(get_current_user_id), db: Session = Depen
 
 
 @router.patch("/me")
-def update_profile(body: UpdateProfileRequest, user_id: int = Depends(get_current_user_id), db: Session = Depends(get_db)):
+def update_profile(
+    body: UpdateProfileRequest,
+    user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
     user = db.scalar(select(User).where(User.user_id == user_id))
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
     if body.name is not None:
-        cleaned = body.name.strip()
-        if len(cleaned) < 2:
-            raise HTTPException(status_code=400, detail="Name must be at least 2 characters")
-        if len(cleaned) > 100:
-            raise HTTPException(status_code=400, detail="Name must be at most 100 characters")
-        user.name = cleaned
+        user.name = body.name  # already validated + stripped by Pydantic
 
     db.commit()
     db.refresh(user)
 
-    # Update the token with new name so frontend can reflect immediately
+    # Re-issue token so frontend gets fresh name immediately
     token = create_access_token({"sub": str(user.user_id)})
 
     return {
@@ -99,7 +86,11 @@ def update_profile(body: UpdateProfileRequest, user_id: int = Depends(get_curren
 
 
 @router.post("/me/change-password")
-def change_password(body: ChangePasswordRequest, user_id: int = Depends(get_current_user_id), db: Session = Depends(get_db)):
+def change_password(
+    body: ChangePasswordRequest,
+    user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
     user = db.scalar(select(User).where(User.user_id == user_id))
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -107,37 +98,24 @@ def change_password(body: ChangePasswordRequest, user_id: int = Depends(get_curr
     if not verify_password(body.current_password, user.password_hash):
         raise HTTPException(status_code=400, detail="Current password is incorrect")
 
-    # Enforce strong password rules (must match frontend validation)
-    import re
-    p = body.new_password
-    if len(p) < 8:
-        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
-    if not re.search(r"[A-Z]", p):
-        raise HTTPException(status_code=400, detail="Password must include one uppercase letter")
-    if not re.search(r"[a-z]", p):
-        raise HTTPException(status_code=400, detail="Password must include one lowercase letter")
-    if not re.search(r"\d", p):
-        raise HTTPException(status_code=400, detail="Password must include one number")
-    if not re.search(r"[!@#$%^&*()_+\-=\[\]{};':\"\\|,.<>/?`~]", p):
-        raise HTTPException(status_code=400, detail="Password must include one special character")
-
     if body.current_password == body.new_password:
         raise HTTPException(status_code=400, detail="New password must be different from current password")
 
     user.password_hash = get_password_hash(body.new_password)
     db.commit()
 
-    # Generate new token
+    # Re-issue token after password change
     token = create_access_token({"sub": str(user.user_id)})
 
-    return {
-        "message": "Password changed successfully",
-        "token": token,
-    }
+    return {"message": "Password changed successfully", "token": token}
 
 
 @router.delete("/me")
-def delete_account(body: DeleteAccountRequest, user_id: int = Depends(get_current_user_id), db: Session = Depends(get_db)):
+def delete_account(
+    body: DeleteAccountRequest,
+    user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
     user = db.scalar(select(User).where(User.user_id == user_id))
     if not user:
         raise HTTPException(status_code=404, detail="User not found")

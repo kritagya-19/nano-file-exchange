@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
+import { Cloud, Download, FileText } from "lucide-react";
 import { API_BASE_URL } from "../utils/api";
 
 function formatSize(bytes) {
@@ -7,7 +8,7 @@ function formatSize(bytes) {
   const k = 1024;
   const sizes = ["B", "KB", "MB", "GB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))  } ${  sizes[i]}`;
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
 }
 
 export function ShareDownload() {
@@ -17,9 +18,14 @@ export function ShareDownload() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    if (!token) {
+      setError("Invalid share link.");
+      setLoading(false);
+      return;
+    }
     const fetchInfo = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/files/shared/${token}/info`);
+        const res = await fetch(`${API_BASE_URL}/files/shared/${encodeURIComponent(token)}/info`);
         if (!res.ok) throw new Error("File not found or link expired");
         const data = await res.json();
         setFileInfo(data);
@@ -33,13 +39,13 @@ export function ShareDownload() {
   }, [token]);
 
   const handleDownload = () => {
-    window.open(`${API_BASE_URL}/files/shared/${token}`, "_blank");
+    window.open(`${API_BASE_URL}/files/shared/${encodeURIComponent(token)}`, "_blank");
   };
 
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50">
-        <p className="text-slate-500">Loading…</p>
+        <div className="h-9 w-9 animate-spin rounded-full border-2 border-brand border-t-transparent" aria-label="Loading" />
       </div>
     );
   }

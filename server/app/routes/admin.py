@@ -5,13 +5,18 @@ plan/subscription management, storage analytics, revenue, activity logs,
 and dashboard statistics.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+import json as _json
+import logging
+import os
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Security
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func, desc, or_, extract
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime, timedelta, UTC
-import os
+import jwt
 
 from app.database import get_db
 from app.models.user import User, Admin
@@ -25,15 +30,9 @@ from app.utils.security import verify_password, create_access_token
 from app.config import settings
 from app.utils.file_ops import delete_file_from_disk as _delete_file_from_disk
 
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from fastapi import Security
-import jwt
-
 router = APIRouter()
-
-import logging
-
 logger = logging.getLogger(__name__)
+
 
 
 def _sanitize_like(value: str) -> str:
@@ -546,8 +545,6 @@ def admin_delete_group(group_id: int, admin_id: int = Depends(get_admin_id), db:
 
 
 # ─────────────────────── 6. PLAN & SUBSCRIPTION MANAGEMENT ──────────
-
-import json as _json
 
 
 @router.get("/plans")

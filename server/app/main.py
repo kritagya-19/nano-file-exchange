@@ -1,7 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import ORJSONResponse
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import ORJSONResponse, JSONResponse
 from contextlib import asynccontextmanager
 from sqlalchemy import text
 import os
@@ -141,6 +142,24 @@ app = FastAPI(
     # ORJSON: 2-5x faster JSON serialization (Rust-based)
     default_response_class=ORJSONResponse,
 )
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request, exc):
+    errors = []
+    has_missing = False
+    for err in exc.errors():
+        if err.get("type") == "missing":
+            has_missing = True
+        msg = err.get("msg", "Validation error")
+        if msg.startswith("Value error, "):
+            msg = msg.replace("Value error, ", "")
+        errors.append(msg)
+    status_code = 422 if has_missing else 400
+    detail_msg = "; ".join(errors)
+    return JSONResponse(
+        status_code=status_code,
+        content={"detail": detail_msg}
+    )
 
 # GZip compression — compresses JSON responses by 60-80% for faster transfer
 app.add_middleware(GZipMiddleware, minimum_size=500)

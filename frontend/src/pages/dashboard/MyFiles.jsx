@@ -5,7 +5,25 @@ import {
   Music,
   Archive,
   Code2,
-  File as FileIcon
+  File as FileIcon,
+  X,
+  CheckCircle2,
+  UploadCloud,
+  Star,
+  MoreVertical,
+  Share2,
+  MoveRight,
+  Download,
+  Trash2,
+  CloudUpload,
+  ChevronRight,
+  FolderPlus,
+  FolderOpen,
+  FileStack,
+  Search,
+  Link2,
+  Check,
+  Copy
 } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { apiFetch, uploadFileWithProgress, uploadFileChunked, API_BASE_URL } from "../../utils/api";

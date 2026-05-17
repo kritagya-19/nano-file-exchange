@@ -1,7 +1,9 @@
 import { useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, Navigate, Link } from "react-router-dom";
+import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { apiFetch } from "../utils/api";
+import { AuthLayout } from "../components/AuthLayout";
 import { validateEmail, validateLoginForm } from "../utils/validation";
 
 function FieldError({ message, id }) {
@@ -41,6 +43,8 @@ export function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [touched, setTouched] = useState({ email: false, password: false });
   const [submitted, setSubmitted] = useState(false);
+  const [serverError, setServerError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   if (ready && user?.email) {
     return <Navigate to={from} replace />;
@@ -54,33 +58,41 @@ export function Login() {
   async function handleSubmit(e) {
     e.preventDefault();
     setSubmitted(true);
+    setServerError("");
     const next = validateLoginForm({ email, password });
     if (next.email || next.password) return;
-    
+
+    setIsLoading(true);
     try {
       const response = await apiFetch("/auth/login", {
         method: "POST",
-        body: { email: email.trim(), password }
+        body: { email: email.trim().toLowerCase(), password },
       });
-      
-      login({ 
+
+      login({
         token: response.token,
         user_id: response.user_id,
-        name: response.name, 
-        email: response.email 
+        name: response.name,
+        email: response.email,
       });
       navigate(from.startsWith("/") ? from : "/dashboard", { replace: true });
     } catch (err) {
-      // Create a fake event shaped object to mark the password invalid on bad login
-      setTouched(t => ({...t, password: true}));
-      // Manually hijacking validateLoginForm state temporarily or throwing alert
-      alert(err.message || "Invalid credentials");
+      setServerError(err.message || "Invalid email or password.");
+    } finally {
+      setIsLoading(false);
     }
   }
 
   return (
     <AuthLayout title="Welcome back" subtitle="Sign in to continue to your dashboard">
       <form onSubmit={handleSubmit} noValidate className="space-y-5">
+        {/* Server-level error banner */}
+        {serverError && (
+          <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+            {serverError}
+          </div>
+        )}
+
         <div>
           <label htmlFor="login-email" className="text-sm font-medium text-slate-800">
             Email Address
@@ -93,7 +105,7 @@ export function Login() {
               type="email"
               autoComplete="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => { setEmail(e.target.value); setServerError(""); }}
               onBlur={() => setTouched((t) => ({ ...t, email: true }))}
               className={inputInner}
               placeholder="you@example.com"
@@ -116,14 +128,12 @@ export function Login() {
               type={showPassword ? "text" : "password"}
               autoComplete="current-password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => { setPassword(e.target.value); setServerError(""); }}
               onBlur={() => setTouched((t) => ({ ...t, password: true }))}
               className={inputInnerPassword}
               placeholder="••••••••"
               aria-invalid={!!showPasswordError}
-              aria-describedby={[showPasswordError ? "login-password-error" : null, "login-password-hint"]
-                .filter(Boolean)
-                .join(" ")}
+              aria-describedby={showPasswordError ? "login-password-error" : undefined}
             />
             <button
               type="button"
@@ -135,14 +145,14 @@ export function Login() {
             </button>
           </div>
           <FieldError message={showPasswordError ? errors.password : ""} id="login-password-error" />
-          <PasswordRuleList password={password} id="login-password-hint" />
         </div>
 
         <button
           type="submit"
-          className="mt-2 w-full rounded-lg bg-brand py-3 text-sm font-semibold text-white shadow-md shadow-brand/25 transition hover:bg-brand-dark focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2"
+          disabled={isLoading}
+          className="mt-2 w-full rounded-lg bg-brand py-3 text-sm font-semibold text-white shadow-md shadow-brand/25 transition hover:bg-brand-dark focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          Sign In
+          {isLoading ? "Signing in…" : "Sign In"}
         </button>
       </form>
 
@@ -156,7 +166,7 @@ export function Login() {
       </div>
 
       <Link
-        to={`/register${redirectParam ? `?redirect=${encodeURIComponent(redirectParam)}` : ''}`}
+        to={`/register${redirectParam ? `?redirect=${encodeURIComponent(redirectParam)}` : ""}`}
         className="flex w-full items-center justify-center rounded-lg border border-slate-300 bg-white py-3 text-sm font-semibold text-slate-900 shadow-sm transition hover:border-slate-400 hover:bg-slate-50"
       >
         Create a free account
