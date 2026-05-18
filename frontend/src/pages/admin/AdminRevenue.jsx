@@ -1,4 +1,20 @@
+import { DollarSign } from "lucide-react";
 import { useState, useEffect } from "react";
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  Legend
+} from "recharts";
 import { adminFetch } from "../../utils/adminApi";
 
 function formatCurrency(amount) {

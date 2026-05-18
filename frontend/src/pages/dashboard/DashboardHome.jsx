@@ -9,10 +9,23 @@ import {
   Code2,
   File as FileIcon,
   Star,
-  Users
+  Users,
+  Sparkles,
+  Activity,
+  RefreshCw,
+  HardDrive,
+  Crown,
+  Zap,
+  TrendingUp,
+  Clock,
+  ArrowUpRight,
+  Share2,
+  Download,
+  ArrowRight
 } from "lucide-react";
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import { useAuth } from "../../context/AuthContext";
 import { apiFetch, API_BASE_URL } from "../../utils/api";
 import { nameFromEmail } from "../../utils/displayName";

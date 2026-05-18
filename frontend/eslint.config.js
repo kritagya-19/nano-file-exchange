@@ -57,6 +57,8 @@ export default [
 
     rules: {
       // ── React ──────────────────────────────────────────────────────────
+      "react/jsx-uses-vars": "error",
+      "react/jsx-uses-react": "error",
       // Require key prop for elements in arrays/iterators
       "react/jsx-key": ["error", { checkFragmentShorthand: true }],
       // Warn on self-closing JSX tags that have no children (<Foo /> not <Foo></Foo>)

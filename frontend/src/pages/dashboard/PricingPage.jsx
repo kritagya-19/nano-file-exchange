@@ -10,6 +10,8 @@ import {
   Clock,
   BarChart3,
   Code2,
+  Loader2,
+  ArrowRight,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";

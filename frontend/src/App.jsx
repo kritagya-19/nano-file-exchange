@@ -1,15 +1,23 @@
-import { lazy } from "react";
+import { lazy, Suspense } from "react";
+import { Routes, Route, Navigate } from "react-router-dom";
 
 // ── Auth guards & layouts (always loaded — small, critical-path components) ──
+import { AdminLayout } from "./components/admin/AdminLayout";
+import { DashboardLayout } from "./components/dashboard/DashboardLayout";
+import { RequireAdmin } from "./components/RequireAdmin";
+import { RequireAuth } from "./components/RequireAuth";
 
 // ── Landing & auth pages (loaded eagerly — first thing users see) ──
+import { Landing } from "./pages/Landing";
+import { Login } from "./pages/Login";
+import { Register } from "./pages/Register";
 
 // ── Lazy-loaded pages (only downloaded when the user navigates to them) ──
 // This reduces the initial JS bundle by ~60-70% — users only download what they visit.
  
 
 // Public pages
-/* eslint-disable unused-imports/no-unused-vars */
+ 
 const ShareDownload = lazy(() => import("./pages/ShareDownload").then(m => ({ default: m.ShareDownload })));
 const AcceptInvite = lazy(() => import("./pages/AcceptInvite").then(m => ({ default: m.AcceptInvite })));
 
@@ -39,7 +47,7 @@ const AdminStorage = lazy(() => import("./pages/admin/AdminStorage").then(m => (
 const AdminRevenue = lazy(() => import("./pages/admin/AdminRevenue").then(m => ({ default: m.AdminRevenue })));
 const AdminActivity = lazy(() => import("./pages/admin/AdminActivity").then(m => ({ default: m.AdminActivity })));
 const AdminReports = lazy(() => import("./pages/admin/AdminReports").then(m => ({ default: m.AdminReports })));
-/* eslint-enable unused-imports/no-unused-vars */
+ 
 
 // ── Loading fallback shown while a lazy chunk is downloading ──
 function PageLoader() {

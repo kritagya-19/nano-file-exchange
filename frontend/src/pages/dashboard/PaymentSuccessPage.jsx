@@ -1,8 +1,15 @@
 
 
-
-
-import { useLocation, useNavigate } from "react-router-dom";
+import {
+  CheckCircle2,
+  Sparkles,
+  Receipt,
+  CreditCard,
+  Smartphone,
+  Calendar,
+  ArrowRight,
+} from "lucide-react";
+import { useLocation, useNavigate, Link } from "react-router-dom";
 
 export function PaymentSuccessPage() {
   const location = useLocation();

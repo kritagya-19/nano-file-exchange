@@ -1,5 +1,8 @@
+import { Eye, EyeOff, Lock, Mail, UserRound } from "lucide-react";
 import { useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, Navigate, Link } from "react-router-dom";
+import { AuthLayout } from "../components/AuthLayout";
+import { PasswordRuleList } from "../components/PasswordRuleList";
 import { useAuth } from "../context/AuthContext";
 import { apiFetch } from "../utils/api";
 import {

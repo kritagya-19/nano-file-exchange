@@ -1,4 +1,4 @@
-import { Zap, Crown, Star } from "lucide-react";
+import { Zap, Crown, Star, Save } from "lucide-react";
 import { useState, useEffect } from "react";
 import { adminFetch } from "../../utils/adminApi";
 

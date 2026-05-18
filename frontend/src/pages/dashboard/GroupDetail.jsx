@@ -1,5 +1,20 @@
-
-
+import {
+  Ban,
+  ArrowLeft,
+  Users,
+  Copy,
+  MoreVertical,
+  Trash2,
+  Smile,
+  Star,
+  File as FileIcon,
+  Download,
+  Paperclip,
+  Send,
+  X,
+  Mail,
+  ShieldCheck
+} from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";

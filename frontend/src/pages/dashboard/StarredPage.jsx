@@ -1,4 +1,6 @@
+import { Star, Download } from "lucide-react";
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { apiFetch, API_BASE_URL } from "../../utils/api";
 
 function formatSize(bytes) {

@@ -1,3 +1,4 @@
+import { Search, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { adminFetch } from "../../utils/adminApi";
 

@@ -2,6 +2,21 @@ import {
   Shield,
   User as UserIcon,
   Zap,
+  Settings as SettingsIcon,
+  Check,
+  X,
+  Mail,
+  Loader2,
+  KeyRound,
+  EyeOff,
+  Eye,
+  Lock,
+  LogOut,
+  UserX,
+  Trash2,
+  AlertTriangle,
+  CreditCard,
+  ChevronRight,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";

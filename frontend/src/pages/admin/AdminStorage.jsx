@@ -1,4 +1,14 @@
+import { HardDrive, Database } from "lucide-react";
 import { useState, useEffect } from "react";
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip
+} from "recharts";
 import { adminFetch } from "../../utils/adminApi";
 
 function formatBytes(bytes) {
