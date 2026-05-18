@@ -19,6 +19,23 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { apiFetch, uploadFileWithProgress } from "../../utils/api";
+import { AUTH_STORAGE_KEY } from "../../context/AuthContext";
+
+// Derive the WebSocket base URL from the HTTP API base URL
+const WS_BASE = (() => {
+  const api = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+  return api.replace(/^http/, "ws");
+})();
+
+/** Safely parse any timestamp string as UTC and format HH:MM */
+function fmtTime(raw) {
+  if (!raw) return "";
+  // If the string has no timezone marker, treat it as UTC
+  const s = typeof raw === "string" && !raw.endsWith("Z") && !raw.includes("+") ? raw + "Z" : raw;
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return "";
+  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
 
 export function GroupDetail() {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
@@ -50,6 +67,8 @@ export function GroupDetail() {
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const chatScrollRef = useRef(null);
+  const wsRef = useRef(null);           // active WebSocket
+  const wsGroupRef = useRef(null);      // which group the WS is for
 
   useEffect(() => {
     // Reset state when switching groups
@@ -60,25 +79,82 @@ export function GroupDetail() {
     setMessages([]);
     setRequests([]);
 
-    let interval = null;
+    // Close any existing WebSocket when navigating between groups
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
 
-    // Step 1: confirm user has access to this group first
-    fetchGroupInfo().then((hasAccess) => {
-      if (!hasAccess) return; // access denied, stop here
-      // Step 2: fire secondary fetches in parallel only if access confirmed
+    let memberInterval = null;
+
+    const init = async () => {
+      const hasAccess = await fetchGroupInfo();
+      setLoading(false);
+      if (!hasAccess) return;
+
+      // Load initial data
       fetchMembers();
       fetchRequests();
-      fetchMessages();
-      
-      // Only start polling AFTER access is confirmed
-      interval = setInterval(() => {
-        fetchMessages(false);
-        fetchMembers();
-      }, 5000);
-    }).finally(() => setLoading(false));
-    
+      await fetchMessages();
+
+      // --- Open WebSocket for real-time message delivery ---
+      const token = (() => {
+        try { return JSON.parse(localStorage.getItem(AUTH_STORAGE_KEY))?.token || ""; }
+        catch { return ""; }
+      })();
+
+      const connect = () => {
+        const ws = new WebSocket(`${WS_BASE}/chat/ws/${groupId}?token=${encodeURIComponent(token)}`);
+        wsRef.current = ws;
+        wsGroupRef.current = groupId;
+
+        ws.onmessage = (event) => {
+          try {
+            const payload = JSON.parse(event.data);
+            if (payload.type === "new_message") {
+              const incoming = payload.message;
+              setMessages((prev) => {
+                // Deduplicate: skip if a real message with this id already exists,
+                // or replace an optimistic placeholder (id starts with 'opt-')
+                const withoutOptimistic = prev.filter(
+                  (m) => typeof m.id === "string" ? false : m.id !== incoming.id
+                );
+                return [...withoutOptimistic, incoming];
+              });
+              // Scroll to newest message
+              setTimeout(() => {
+                if (chatScrollRef.current) chatScrollRef.current.scrollTop = 0;
+              }, 30);
+            }
+          } catch { /* ignore malformed frames */ }
+        };
+
+        ws.onerror = () => { /* silently reconnect */ };
+
+        ws.onclose = (e) => {
+          // Auto-reconnect unless we intentionally closed (code 1000) or component unmounted
+          if (e.code !== 1000 && wsGroupRef.current === groupId) {
+            setTimeout(connect, 2000);
+          }
+        };
+      };
+
+      connect();
+
+      // Keep member list fresh every 10 s (cheap, sidebar only)
+      memberInterval = setInterval(fetchMembers, 10000);
+    };
+
+    init();
+
     return () => {
-      if (interval) clearInterval(interval);
+      // Clean up on unmount / group change
+      wsGroupRef.current = null;
+      if (wsRef.current) {
+        wsRef.current.close(1000);
+        wsRef.current = null;
+      }
+      if (memberInterval) clearInterval(memberInterval);
     };
   }, [groupId]);
 
@@ -181,28 +257,52 @@ export function GroupDetail() {
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!messageText.trim()) return;
-    
+
     const textToSend = messageText;
     setMessageText("");
-    
-    // Reset textarea height instantly for snappy UX
+
+    // Reset textarea height instantly
     const textarea = document.getElementById("chat-textarea");
-    if (textarea) textarea.style.height = 'auto';
-    
+    if (textarea) textarea.style.height = "auto";
+
+    // Optimistic UI — show sender's message immediately
+    const optId = `opt-${Date.now()}`;
+    const optimisticMsg = {
+      id: optId,
+      group_id: parseInt(groupId),
+      sender_id: user?.user_id,
+      sender_name: user?.name || "You",
+      msg_type: "text",
+      content: textToSend,
+      file_id: null,
+      file_name: null,
+      file_url: null,
+      is_deleted_for_everyone: false,
+      sent_at: new Date().toISOString(),
+      reactions: [],
+      stars: [],
+    };
+    setMessages((prev) => [...prev, optimisticMsg]);
+    setTimeout(() => {
+      if (chatScrollRef.current) chatScrollRef.current.scrollTop = 0;
+    }, 0);
+
     try {
       await apiFetch(`/chat/${groupId}`, {
         method: "POST",
-        body: { content: textToSend, msg_type: "text" }
+        body: { content: textToSend, msg_type: "text" },
       });
-      fetchMessages(false);
-      
-      // Native flex-col-reverse anchors us completely securely; if user scrolled up, snap 'em back down to newest msg
-      setTimeout(() => {
-        const scrollNode = chatScrollRef.current;
-        if (scrollNode) scrollNode.scrollTop = 0;
-      }, 0);
+      // The WebSocket broadcast from the server will replace the optimistic
+      // entry automatically via the onmessage dedup logic.
+      // If WS is not connected, do a one-off fetch as fallback.
+      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+        fetchMessages(false);
+      }
     } catch (err) {
       console.error("Failed to send message", err);
+      // Roll back
+      setMessages((prev) => prev.filter((m) => m.id !== optId));
+      setMessageText(textToSend);
     }
   };
 
@@ -463,9 +563,7 @@ export function GroupDetail() {
                       {!msg.is_deleted_for_everyone && (
                         <div className={`absolute bottom-1 right-2 flex items-center gap-1 opacity-80 ${isMe ? 'text-white' : 'text-slate-400'}`}>
                           {isStarred && <Star className="w-2.5 h-2.5 text-amber-400" fill="currentColor" />}
-                          <span className="text-[10px] whitespace-nowrap">
-                            {new Date(msg.sent_at.endsWith('Z') ? msg.sent_at : `${msg.sent_at  }Z`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </span>
+                          <span className="text-[10px] whitespace-nowrap">{fmtTime(msg.sent_at)}</span>
                         </div>
                       )}
                     </div>

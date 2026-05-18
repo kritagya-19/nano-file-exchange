@@ -46,8 +46,11 @@ export const apiFetch = async (endpoint, options = {}) => {
   const isGet = method === "GET";
   const cacheKey = `api_cache_${endpoint}`;
 
+  // Chat endpoints must NEVER be cached — they are real-time.
+  const isRealtime = endpoint.startsWith("/chat/");
+
   // 1. Return cached GET requests immediately (Stale-While-Revalidate pattern basics)
-  if (isGet && !options.bypassCache) {
+  if (isGet && !options.bypassCache && !isRealtime) {
     // Check Memory Cache
     if (globalCache.has(cacheKey)) {
       const cached = globalCache.get(cacheKey);

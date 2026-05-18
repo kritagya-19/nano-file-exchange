@@ -13,7 +13,7 @@ class Message(Base):
     content = Column(Text, nullable=False)
     file_id = Column(Integer, ForeignKey("files.file_id", ondelete="SET NULL"), nullable=True)
     is_deleted_for_everyone = Column(Boolean, default=False)
-    sent_at = Column(TIMESTAMP, server_default=func.now(), index=True)
+    sent_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), index=True)
 
     # Optional relationships to help with querying
     reactions = relationship("MessageReaction", back_populates="message", cascade="all, delete-orphan")
@@ -27,7 +27,7 @@ class MessageHide(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     message_id = Column(Integer, ForeignKey("messages.id", ondelete="CASCADE"), nullable=False, index=True)
     user_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False, index=True)
-    hidden_at = Column(TIMESTAMP, server_default=func.now())
+    hidden_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
     message = relationship("Message", back_populates="hides")
     
@@ -43,7 +43,7 @@ class MessageReaction(Base):
     message_id = Column(Integer, ForeignKey("messages.id", ondelete="CASCADE"), nullable=False, index=True)
     user_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False, index=True)
     emoji = Column(String(50), nullable=False)
-    created_at = Column(TIMESTAMP, server_default=func.now())
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
     message = relationship("Message", back_populates="reactions")
     
@@ -58,7 +58,7 @@ class MessageStar(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     message_id = Column(Integer, ForeignKey("messages.id", ondelete="CASCADE"), nullable=False, index=True)
     user_id = Column(Integer, ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False, index=True)
-    created_at = Column(TIMESTAMP, server_default=func.now())
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
     message = relationship("Message", back_populates="stars")
     
