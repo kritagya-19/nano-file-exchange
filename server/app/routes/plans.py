@@ -14,7 +14,7 @@ from app.models.plan import Plan
 router = APIRouter()
 
 
-@router.get("/")
+@router.get("")
 def get_all_plans(db: Session = Depends(get_db)):
     """Return all plans — public endpoint, no auth required."""
     plans = db.scalars(select(Plan).order_by(Plan.id)).all()
