@@ -7,7 +7,7 @@ test.describe("Landing Page E2E", () => {
     await expect(page).toHaveTitle(/NanoFile/);
     
     // Verify hero section heading is visible
-    const heroHeading = page.locator("h1", { hasText: /File sharing/i });
+    const heroHeading = page.locator("h1", { hasText: /File Exchange/i });
     await expect(heroHeading).toBeVisible();
   });
 
