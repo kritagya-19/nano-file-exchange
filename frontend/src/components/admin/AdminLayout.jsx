@@ -8,9 +8,16 @@ import {
   Wallet,
   HardDrive,
   Users2,
+  Shield,
+  X,
+  ChevronLeft,
+  LogOut,
+  ChevronDown,
+  ChevronUp,
+  Menu,
 } from "lucide-react";
 import { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, NavLink, Outlet } from "react-router-dom";
 import { getAdminData, clearAdmin } from "../../utils/adminApi";
 
 const navItems = [
