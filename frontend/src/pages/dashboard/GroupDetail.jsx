@@ -17,9 +17,8 @@ import {
 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth, AUTH_STORAGE_KEY } from "../../context/AuthContext";
 import { apiFetch, uploadFileWithProgress } from "../../utils/api";
-import { AUTH_STORAGE_KEY } from "../../context/AuthContext";
 
 // Derive the WebSocket base URL from the HTTP API base URL
 const WS_BASE = (() => {
