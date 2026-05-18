@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from "react";
-import { Filter, ChevronLeft, ChevronRight } from "lucide-react";
 import { adminFetch } from "../../utils/adminApi";
 
 const ACTION_BADGES = {

@@ -9,26 +9,13 @@ import {
   Code2,
   File as FileIcon,
   Star,
-  Users,
-  Sparkles,
-  Activity,
-  RefreshCw,
-  HardDrive,
-  Crown,
-  Zap,
-  TrendingUp,
-  Clock,
-  ArrowUpRight,
-  Share2,
-  Download,
-  ArrowRight
+  Users
 } from "lucide-react";
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { apiFetch, API_BASE_URL } from "../../utils/api";
 import { nameFromEmail } from "../../utils/displayName";
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 
 const FILE_TYPE_META = {
   images:    { icon: ImageIcon, color: "from-indigo-500 to-indigo-400", hex: "#6366f1", bg: "bg-indigo-50",  text: "text-indigo-600" },

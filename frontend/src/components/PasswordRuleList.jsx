@@ -1,5 +1,4 @@
 import { passwordRuleStatus } from "../utils/validation";
-import { Check } from "lucide-react";
 
 export function PasswordRuleList({ password, id }) {
   const rules = passwordRuleStatus(password);

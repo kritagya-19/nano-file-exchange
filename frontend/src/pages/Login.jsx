@@ -1,9 +1,7 @@
 import { useState } from "react";
-import { useNavigate, useLocation, Navigate, Link } from "react-router-dom";
-import { Eye, EyeOff, Lock, Mail } from "lucide-react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { apiFetch } from "../utils/api";
-import { AuthLayout } from "../components/AuthLayout";
 import { validateEmail, validateLoginForm } from "../utils/validation";
 
 function FieldError({ message, id }) {

@@ -7,9 +7,6 @@ import {
   Share2,
   HardDrive,
   Shield,
-  Check,
-  X,
-  Edit3,
 } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";

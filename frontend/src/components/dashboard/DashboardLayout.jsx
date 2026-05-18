@@ -1,22 +1,12 @@
 import {
-  ChevronDown,
-  ChevronLeft,
-  ChevronUp,
-  Cloud,
   FolderOpen,
   LayoutDashboard,
-  LifeBuoy,
-  LogOut,
-  Menu,
-  Settings,
   Star,
   Trash2,
   Users,
-  X,
-  Zap,
 } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
-import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { apiFetch } from "../../utils/api";
 import { nameFromEmail } from "../../utils/displayName";

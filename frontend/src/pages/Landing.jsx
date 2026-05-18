@@ -1,12 +1,4 @@
 
-import { Header } from "../components/ui/header-3";
-import { HeroSection } from "../components/ui/hero-3";
-import { Features } from "../components/Features";
-import { Process } from "../components/Process";
-import { ForWhom } from "../components/ForWhom";
-import { Pricing } from "../components/Pricing";
-import { CTA } from "../components/CTA";
-import { Footer } from "../components/Footer";
 
 export function Landing() {
   return (

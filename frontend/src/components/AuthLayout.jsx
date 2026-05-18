@@ -1,5 +1,4 @@
-import { CheckCircle2, Shield, Zap, Cloud } from "lucide-react";
-import { Link } from "react-router-dom";
+import { CheckCircle2, Shield, Zap } from "lucide-react";
 const features = [
   { icon: Zap, text: "10GB file uploads" },
   { icon: Shield, text: "Bank-level encryption" },

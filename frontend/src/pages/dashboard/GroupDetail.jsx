@@ -1,22 +1,7 @@
+
+
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import {
-  Ban,
-  ArrowLeft,
-  Users,
-  Copy,
-  MoreVertical,
-  Trash2,
-  Smile,
-  Star,
-  File as FileIcon,
-  Download,
-  Paperclip,
-  Send,
-  X,
-  Mail,
-  ShieldCheck
-} from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { apiFetch, uploadFileWithProgress } from "../../utils/api";
 

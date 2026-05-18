@@ -169,6 +169,9 @@ def report_users(
     if end_dt:
         query = query.where(User.created_at <= end_dt)
 
+    headers = ["User ID", "Name", "Email", "Plan", "Status", "Storage Used",
+               "Storage (bytes)", "Files Uploaded", "Groups Joined", "Signup Date"]
+
     users = db.scalars(query.order_by(desc(User.created_at))).all()
     if not users:
         now = datetime.now(UTC).strftime("%Y%m%d_%H%M")
@@ -205,8 +208,6 @@ def report_users(
         if uid not in plan_map:
             plan_map[uid] = plan_name
 
-    headers = ["User ID", "Name", "Email", "Plan", "Status", "Storage Used",
-               "Storage (bytes)", "Files Uploaded", "Groups Joined", "Signup Date"]
     rows = []
     for u in users:
         st = storage_map.get(u.user_id, {"size": 0, "count": 0})

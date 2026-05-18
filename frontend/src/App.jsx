@@ -1,20 +1,12 @@
-import { Routes, Route, Navigate } from "react-router-dom";
-import { lazy, Suspense } from "react";
+import { lazy } from "react";
 
 // ── Auth guards & layouts (always loaded — small, critical-path components) ──
-import { RequireAuth } from "./components/RequireAuth";
-import { RequireAdmin } from "./components/RequireAdmin";
-import { DashboardLayout } from "./components/dashboard/DashboardLayout";
-import { AdminLayout } from "./components/admin/AdminLayout";
 
 // ── Landing & auth pages (loaded eagerly — first thing users see) ──
-import { Landing } from "./pages/Landing";
-import { Login } from "./pages/Login";
-import { Register } from "./pages/Register";
 
 // ── Lazy-loaded pages (only downloaded when the user navigates to them) ──
 // This reduces the initial JS bundle by ~60-70% — users only download what they visit.
-// eslint-disable-next-line unused-imports/no-unused-vars -- used as JSX components below
+ 
 
 // Public pages
 /* eslint-disable unused-imports/no-unused-vars */

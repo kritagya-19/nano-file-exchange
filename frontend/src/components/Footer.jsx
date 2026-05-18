@@ -1,5 +1,4 @@
 
-import { Twitter, Github } from "lucide-react";
 const cols = [
   {
     title: "Product",

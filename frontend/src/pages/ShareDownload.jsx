@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { Cloud, Download, FileText } from "lucide-react";
 import { API_BASE_URL } from "../utils/api";
 
 function formatSize(bytes) {
