@@ -85,6 +85,7 @@ export function GroupDetail() {
     }
 
     let memberInterval = null;
+    let messageInterval = null;
 
     const init = async () => {
       const hasAccess = await fetchGroupInfo();
@@ -142,6 +143,13 @@ export function GroupDetail() {
 
       // Keep member list fresh every 10 s (cheap, sidebar only)
       memberInterval = setInterval(fetchMembers, 10000);
+
+      // Fallback polling for messages every 4 seconds (handles WebSocket disconnects / serverless environments)
+      messageInterval = setInterval(() => {
+        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+          fetchMessages(false);
+        }
+      }, 4000);
     };
 
     init();
@@ -154,6 +162,7 @@ export function GroupDetail() {
         wsRef.current = null;
       }
       if (memberInterval) clearInterval(memberInterval);
+      if (messageInterval) clearInterval(messageInterval);
     };
   }, [groupId]);
 

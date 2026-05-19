@@ -49,7 +49,11 @@ function formatBytes(bytes) {
 
 function timeAgo(dateStr) {
   if (!dateStr) return "";
-  const diff = Date.now() - new Date(dateStr).getTime();
+  let cleanDateStr = dateStr;
+  if (typeof dateStr === "string" && dateStr.includes("T") && !dateStr.endsWith("Z") && !dateStr.includes("+")) {
+    cleanDateStr = dateStr + "Z";
+  }
+  const diff = Date.now() - new Date(cleanDateStr).getTime();
   const mins = Math.floor(diff / 60000);
   if (mins < 1) return "Just now";
   if (mins < 60) return `${mins}m ago`;
@@ -57,7 +61,7 @@ function timeAgo(dateStr) {
   if (hrs < 24) return `${hrs}h ago`;
   const days = Math.floor(hrs / 24);
   if (days < 7) return `${days}d ago`;
-  return new Date(dateStr).toLocaleDateString();
+  return new Date(cleanDateStr).toLocaleDateString();
 }
 
 export function DashboardHome() {

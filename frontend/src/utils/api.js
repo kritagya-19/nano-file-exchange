@@ -163,6 +163,7 @@ export function uploadFileWithProgress(file, folderId, onProgress) {
         return;
       }
       if (xhr.status >= 200 && xhr.status < 300) {
+        invalidateCache();
         try {
           resolve(JSON.parse(xhr.responseText));
         } catch {
@@ -270,6 +271,7 @@ export function uploadFileChunked(file, folderId, onProgress) {
         }
       }
       // After all chunks uploaded, the last chunk response contains file info
+      invalidateCache();
       resolve({ status: "complete" });
     };
 
